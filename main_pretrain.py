@@ -228,9 +228,10 @@ def main(args):
     if not args.use_tcs_dataset:
         dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
         dataset_train = ImagenetWithMask(os.path.join(args.data_path, 'train'),
+                                         input_size=args.input_size,
                                          transform=transform_train,
                                          with_blockwise_mask=args.with_blockwise_mask,
-                                        blockwise_num_masking_patches=args.blockwise_num_masking_patches)
+                                         blockwise_num_masking_patches=args.blockwise_num_masking_patches)
     else: # for internal use only
         from util.tcs_datasets import ImagenetTCSDataset
         dataset_train = ImagenetTCSDataset('train',
