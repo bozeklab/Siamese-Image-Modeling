@@ -57,7 +57,7 @@ def build_transform(is_train, args):
 
 class ImagenetWithMask(datasets.ImageFolder):
     def __init__(self, root,
-                 transform = None,
+                 transform=None,
                  with_blockwise_mask=False, ### !!! set to True, enable blockwise masking
                  blockwise_num_masking_patches=75, ### !!! 75 / 196 = 0.38 -> Modify this to increase mask ratio
                  input_size=224, patch_size=16, # no need to change now
@@ -80,8 +80,6 @@ class ImagenetWithMask(datasets.ImageFolder):
     
     def __getitem__(self, index):
         sample, target = super().__getitem__(index)
-        print('!!!!')
-        print(len(sample))
         if self.with_blockwise_mask:
             return sample, target, self.masked_position_generator()
         return sample, target

@@ -13,6 +13,8 @@
 import argparse
 import datetime
 import json
+
+import PIL
 import numpy as np
 import os
 import time
@@ -173,9 +175,10 @@ class DataAugmentationForSIM(object):
         ])
 
         self.format_transform = transforms.Compose([
+            transforms.Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR),
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            #transforms.Normalize(
+            #    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
     def __call__(self, image):
@@ -187,8 +190,17 @@ class DataAugmentationForSIM(object):
         color_image2 = self.color_transform2(spatial_image2)
 
         relative_flip = (flip1 and not flip2) or (flip2 and not flip1)
-        return self.format_transform(color_image1), self.format_transform(color_image2), \
-                (i2-i1)/h1, (j2-j1)/w1, h2/h1, w2/w1, relative_flip, (W-j1-j2)/w1
+        return {
+            'x0': self.format_transform(image),
+            'x1': self.format_transform(color_image1),
+            'x2': self.format_transform(color_image2),
+            'delta_i': (i2-i1)/h1,
+            'delta_j': (j2-j1)/w1,
+            'delta_h': h2/h1,
+            'delta_w': w2/w1,
+            'relative_flip': relative_flip,
+            'flip_delta_j': (W-j1-j2)/w1
+        }
 
     def __repr__(self):
         repr = "(DataAugmentation,\n"

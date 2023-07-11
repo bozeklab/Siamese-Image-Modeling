@@ -61,7 +61,17 @@ def train_one_epoch(model: torch.nn.Module,
         update_mm = (data_iter_step % accum_iter == 0)
 
         if args.loss_type in ['sim',]:
-            x1, x2, delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j = samples
+
+            x0 = samples['x0']
+            x1 = samples['x1']
+            x2 = samples['x2']
+            delta_i = samples['delta_i']
+            delta_j = samples['delta_j']
+            delta_h = samples['delta_h']
+            delta_w = samples['delta_w']
+            relative_flip = samples['relative_flip']
+            flip_delta_j = samples['flip_delta_j']
+
             x1 = x1.to(device, non_blocking=True)
             x2 = x2.to(device, non_blocking=True)
             delta_i = delta_i.to(x1)
