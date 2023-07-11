@@ -68,7 +68,7 @@ def train_one_epoch(model: torch.nn.Module,
             delta_i = samples['delta_i']
             delta_j = samples['delta_j']
             delta_h = samples['delta_h']
-            delta_w = samples['delta_w']
+            delta_w = samples['deslta_w']
             relative_flip = samples['relative_flip']
             flip_delta_j = samples['flip_delta_j']
 
