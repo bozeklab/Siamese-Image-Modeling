@@ -81,7 +81,7 @@ class ImagenetWithMask(datasets.ImageFolder):
     def __getitem__(self, index):
         sample, target = super().__getitem__(index)
         print('!!!!')
-        print(sample)
+        print(len(sample))
         if self.with_blockwise_mask:
             return sample, target, self.masked_position_generator()
         return sample, target
