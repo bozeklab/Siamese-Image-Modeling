@@ -249,7 +249,7 @@ def main(args):
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     if not args.use_tcs_dataset:
         dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        dataset_train = ImagenetWithMask(os.path.join(args.data_path, 'train'),
+        dataset_train = ImagenetWithMask(os.path.join(args.data_path),
                                          input_size=args.input_size,
                                          transform=transform_train,
                                          with_blockwise_mask=args.with_blockwise_mask,
