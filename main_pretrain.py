@@ -81,7 +81,7 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--data_path', default='/Users/piotrwojcik/images_he_seg1000/positive/', type=str,
                         help='dataset path')
 
     parser.add_argument('--output_dir', default='./output_dir',
@@ -181,7 +181,7 @@ class DataAugmentationForSIM(object):
             #    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-    def __call__(self, image):
+    def __call__(self, image, boxes):
         spatial_image1, flip1 = self.random_flip(image)
         spatial_image2, flip2 = self.random_flip(image)
         spatial_image1, i1, j1, h1, w1, W = self.random_resized_crop(spatial_image1)
@@ -194,6 +194,16 @@ class DataAugmentationForSIM(object):
             'x0': self.format_transform(image),
             'x1': self.format_transform(color_image1),
             'x2': self.format_transform(color_image2),
+            'i1': i1,
+            'i2': i2,
+            'j1': j1,
+            'j2': j2,
+            'h1': h1,
+            'h2': h2,
+            'w1': w1,
+            'w2': w2,
+            'flip1': flip1,
+            'flip2': flip2,
             'delta_i': (i2-i1)/h1,
             'delta_j': (j2-j1)/w1,
             'delta_h': h2/h1,

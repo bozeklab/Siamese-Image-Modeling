@@ -204,7 +204,7 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/Users/piotrwojcik/images_he_seg1000/', type=str,
+    parser.add_argument('--data_path', default='/Users/piotrwojcik/images_he_seg1000/positive/', type=str,
                         help='dataset path')
 
     parser.add_argument('--output_dir', default='./output_dir',
@@ -253,7 +253,7 @@ def get_args_parser():
     parser.add_argument('--neg_weight', default=0.02, type=float)
 
     parser.add_argument('--with_blockwise_mask', default=True, action='store_true')
-    parser.add_argument('--blockwise_num_masking_patches', default=110 , type=int)
+    parser.add_argument('--blockwise_num_masking_patches', default=220, type=int)
 
     # hyper-parameter
     parser.add_argument('--mm', default=0.996, type=float)
@@ -299,14 +299,17 @@ if __name__ == '__main__':
     images = []
 
     for idx, data in enumerate(dataloader_train):
-        samples, labels, mask = data
+        samples, mask = data
         x0 = samples['x0']
         x1 = samples['x1']
         x2 = samples['x2']
-        delta_i = samples['delta_i']
-        delta_j = samples['delta_j']
-        delta_h = samples['delta_h']
-        delta_w = samples['delta_w']
+        i1, i2 = samples['i1'], samples['i2']
+        j1, j2 = samples['j1'], samples['j2']
+        h1, h2 = samples['h1'], samples['h2']
+        w1, w2 = samples['w1'], samples['w2']
+
+        crops = torch.concat([i1, j1, h1, w1, i2, j2, h2, w2])
+
         relative_flip = samples['relative_flip']
         flip_delta_j = samples['flip_delta_j']
 
@@ -327,7 +330,7 @@ if __name__ == '__main__':
 
         mask = tensor_batch_to_list(mask)
 
-        #img0 = draw_crop_boxes(img0, pos)
+        #img0 = draw_crop_boxes(img0, crops)
         #img0 = draw_bboxes(img0, boxes)
         img1 = [gray_out_mask(img, mask, patch_size, alpha=0.5) for img, mask in zip(img1, mask)]
         imgs = interleave_lists(img0, img1, img2)

@@ -17,6 +17,8 @@ from torchvision import datasets, transforms
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
+from util.img_with_picke_dataset import ImgWithPickleDataset
+
 
 def build_transform(is_train, args):
     mean = IMAGENET_DEFAULT_MEAN
@@ -55,7 +57,7 @@ def build_transform(is_train, args):
     return transforms.Compose(t)
 
 
-class ImagenetWithMask(datasets.ImageFolder):
+class ImagenetWithMask(ImgWithPickleDataset):
     def __init__(self, root,
                  transform=None,
                  with_blockwise_mask=False, ### !!! set to True, enable blockwise masking
@@ -65,7 +67,7 @@ class ImagenetWithMask(datasets.ImageFolder):
                  min_mask_patches_per_block=16, # BEiT default setting, no need to change
                  fixed_num_masking_patches=True, ### set to true, fixed number of masking patch to blockwise_num_masking_patches for sim training 
                  ):
-        super().__init__(root, transform)
+        super().__init__(root, transform=transform)
         self.with_blockwise_mask = with_blockwise_mask
         if with_blockwise_mask:
             from .masking_generator import MaskingGenerator
@@ -79,7 +81,7 @@ class ImagenetWithMask(datasets.ImageFolder):
             )
     
     def __getitem__(self, index):
-        sample, target = super().__getitem__(index)
+        sample = super().__getitem__(index)
         if self.with_blockwise_mask:
-            return sample, target, self.masked_position_generator()
-        return sample, target
+            return sample, self.masked_position_generator()
+        return sample
