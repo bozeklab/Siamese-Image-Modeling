@@ -1,6 +1,7 @@
 import math
 import random
 
+import PIL
 from PIL import ImageFilter, ImageOps
 import torch
 import torchvision.transforms as transforms
@@ -136,7 +137,31 @@ class SingleRandomResizedCrop(transforms.RandomResizedCrop):
         j = (width - w) // 2
         return i, j, h, w, width
 
-    def forward(self, img):
+    def rescale_boxes(self, boxes, i, j, old_h, old_w):
+        """Rescale bounding boxes according to the crop parameters"""
+
+        _boxes = boxes.detach().clone()
+        _boxes[:, 0::2] -= j
+        _boxes[:, 1::2] -= i
+        for i in range(_boxes.shape[0]):
+            if _boxes[i, 0] < 0 or _boxes[i, 1] < 0:
+                _boxes[i, :] = -1
+            if _boxes[i, 2] >= old_w or _boxes[i, 3] >= old_h:
+                _boxes[i, :] = -1
+        if isinstance(self.size, tuple):
+            ratio_w = self.size[1] / old_w
+            ratio_h = self.size[0] / old_h
+        else:
+            ratio_w = self.size / old_w
+            ratio_h = self.size / old_h
+        _boxes = _boxes.float()
+
+        _boxes[:, 0::2] *= ratio_w
+        _boxes[:, 1::2] *= ratio_h
+
+        return _boxes.int()
+
+    def forward(self, img, boxes):
         """
         Args:
             img (PIL Image or Tensor): Image to be cropped and resized.
@@ -145,11 +170,62 @@ class SingleRandomResizedCrop(transforms.RandomResizedCrop):
             PIL Image or Tensor: Randomly cropped and resized image.
         """
         i, j, h, w, width = self.get_params(img, self.scale, self.ratio)
-        return F.resized_crop(img, i, j, h, w, self.size, self.interpolation), i, j, h, w, width
-    
+        return F.resized_crop(img, i, j, h, w, self.size, self.interpolation), \
+               self.rescale_boxes(boxes, i, j, h, w), i, j, h, w, width
+
+
+class Resize(transforms.Resize):
+    def __init__(self, size, interpolation=PIL.Image.BILINEAR):
+        super(Resize, self).__init__(size, interpolation)
+
+    def rescale_boxes(self, boxes, old_h, old_w):
+        _boxes = boxes.detach().clone()
+
+        if isinstance(self.size, tuple):
+            ratio_w = self.size[1] / old_w
+            ratio_h = self.size[0] / old_h
+        else:
+            ratio_w = self.size / old_w
+            ratio_h = self.size / old_h
+
+        _boxes = boxes.float()
+        _boxes[:, 0::2] *= ratio_w
+        _boxes[:, 1::2] *= ratio_h
+
+        return _boxes.int()
+
+    def forward(self, img, boxes):
+        w, h = F.get_image_size(img)
+
+        img = transforms.Resize(size=self.size, interpolation=self.interpolation)(img)
+        boxes = self.rescale_boxes(boxes, h, w)
+
+        return img, boxes
+
 
 class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
-    def forward(self, img):
+    """Horizontally flip the given image randomly with a given probability.
+    If the image is torch Tensor, it is expected
+    to have [..., H, W] shape, where ... means an arbitrary number of leading
+    dimensions
+
+    Args:
+        p (float): probability of the image being flipped. Default value is 0.5
+    """
+    def flip_boxes(self, boxes, width):
+        _boxes = boxes.detach().clone()
+
+        w = _boxes[:, 2] - _boxes[:, 0]
+
+        _boxes[:, 0::2] *= -1
+        _boxes[:, 0::2] += width - 1
+
+        _boxes[:, 0] -= w
+        _boxes[:, 2] += w
+        return _boxes
+
+    def forward(self, img, boxes):
         if torch.rand(1) < self.p:
-            return F.hflip(img), True
-        return img, False
+            w, _ = F.get_image_size(img)
+            return F.hflip(img), True, self.flip_boxes(boxes, w)
+        return img, False, boxes

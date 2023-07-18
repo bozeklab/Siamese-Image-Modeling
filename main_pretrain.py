@@ -13,6 +13,7 @@
 import argparse
 import datetime
 import json
+import random
 
 import PIL
 import numpy as np
@@ -34,7 +35,8 @@ from timm.optim import create_optimizer
 
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
-from util.augmentation import RandomResizedCrop, GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlip, Solarize
+from util.augmentation import GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlip, Solarize, \
+    Resize
 from util.datasets import ImagenetWithMask
 import models_sim
 from engine_pretrain import train_one_epoch
@@ -54,6 +56,9 @@ def get_args_parser():
 
     parser.add_argument('--input_size', default=224, type=int,
                         help='images input size')
+
+    parser.add_argument('--num_boxes', default=225, type=int,
+                        help='maximal number of boxes')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,
                         help='Masking ratio (percentage of removed patches).')
@@ -150,12 +155,32 @@ def get_args_parser():
     return parser
 
 
+def _pad_boxes(boxes, num_boxes):
+    fake_box = torch.tensor(4 * [-1])
+
+    if boxes is None:
+        return fake_box.expand(num_boxes, -1)
+
+    boxes_available = boxes.shape[0]
+
+    if boxes.shape[0] <= num_boxes:
+        padding_length = num_boxes - boxes_available
+        fake_box = fake_box.expand(padding_length, -1)
+        boxes = torch.cat([boxes, fake_box])
+        return boxes
+
+    idx = random.sample(range(boxes_available), num_boxes)
+    return boxes[idx]
+
+
 class DataAugmentationForSIM(object):
     def __init__(self, args):
         self.args = args
 
         self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
         self.random_flip = RandomHorizontalFlip()
+        self.resize = Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR)
+        self.to_tensor = transforms.ToTensor()
 
         self.color_transform1 = transforms.Compose([
             transforms.RandomApply([
@@ -174,26 +199,22 @@ class DataAugmentationForSIM(object):
             transforms.RandomApply([Solarize()], p=0.2),
         ])
 
-        self.format_transform = transforms.Compose([
-            transforms.Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR),
-            transforms.ToTensor(),
-            #transforms.Normalize(
-            #    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-
     def __call__(self, image, boxes):
-        spatial_image1, flip1 = self.random_flip(image)
-        spatial_image2, flip2 = self.random_flip(image)
-        spatial_image1, i1, j1, h1, w1, W = self.random_resized_crop(spatial_image1)
-        spatial_image2, i2, j2, h2, w2, W = self.random_resized_crop(spatial_image2)
+        image, boxes = self.resize(image, boxes)
+        boxes0 = boxes.clone()
+        spatial_image1, flip1, boxes1 = self.random_flip(image, boxes)
+        spatial_image2, flip2, boxes2 = self.random_flip(image, boxes)
+
+        spatial_image1, boxes1, i1, j1, h1, w1, W = self.random_resized_crop(spatial_image1, boxes1)
+        spatial_image2, boxes2, i2, j2, h2, w2, _ = self.random_resized_crop(spatial_image2, boxes2)
         color_image1 = self.color_transform1(spatial_image1)
         color_image2 = self.color_transform2(spatial_image2)
 
         relative_flip = (flip1 and not flip2) or (flip2 and not flip1)
         return {
-            'x0': self.format_transform(image),
-            'x1': self.format_transform(color_image1),
-            'x2': self.format_transform(color_image2),
+            'x0': self.to_tensor(image),
+            'x1': self.to_tensor(color_image1),
+            'x2': self.to_tensor(color_image2),
             'i1': i1,
             'i2': i2,
             'j1': j1,
@@ -209,12 +230,16 @@ class DataAugmentationForSIM(object):
             'delta_h': h2/h1,
             'delta_w': w2/w1,
             'relative_flip': relative_flip,
-            'flip_delta_j': (W-j1-j2)/w1
+            'flip_delta_j': (W-j1-j2)/w1,
+            'boxes0': _pad_boxes(boxes0, self.args.num_boxes),
+            'boxes1': _pad_boxes(boxes1, self.args.num_boxes),
+            'boxes2': _pad_boxes(boxes2, self.args.num_boxes)
         }
 
     def __repr__(self):
         repr = "(DataAugmentation,\n"
-        repr += "  transform = %s,\n" % str(self.random_resized_crop) + str(self.random_flip) + str(self.color_transform1) + str(self.format_transform)
+        repr += "  transform = %s,\n" % str(self.resize) + str(self.random_resized_crop) + str(self.random_flip) + \
+                str(self.color_transform1) + str(self.to_tensor)
         repr += ")"
         return repr
 

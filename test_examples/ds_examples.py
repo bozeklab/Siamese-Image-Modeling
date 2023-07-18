@@ -144,11 +144,9 @@ def draw_bboxes(images, boxes):
     annotated_images = []
 
     # Create a mask for elements where the last positions are not all -1
-    mask = (boxes[:, :, -1] != -1).unsqueeze(-1).expand_as(boxes)
+    #mask = (boxes[:, :, -1] != -1).unsqueeze(-1).expand_as(boxes)
+    #boxes = boxes[mask]
     boxes = boxes.float()
-
-    # Multiply the elements by a certain number (e.g., 2) only where the mask is True
-    boxes[mask] *= 384/512
 
     for idx, image in enumerate(images):
         annotated_image = draw_bounding_boxes(denormalize(image), boxes[idx], width=2, colors="red")
@@ -177,6 +175,9 @@ def get_args_parser():
 
     parser.add_argument('--input_size', default=352, type=int,
                         help='images input size')
+
+    parser.add_argument('--num_boxes', default=225, type=int,
+                        help='maximal number of boxes')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,
                         help='Masking ratio (percentage of removed patches).')
@@ -307,8 +308,18 @@ if __name__ == '__main__':
         j1, j2 = samples['j1'], samples['j2']
         h1, h2 = samples['h1'], samples['h2']
         w1, w2 = samples['w1'], samples['w2']
+        boxes0 = samples['boxes0']
+        boxes1 = samples['boxes1']
+        boxes2 = samples['boxes2']
 
-        crops = torch.concat([i1, j1, h1, w1, i2, j2, h2, w2])
+        crops = torch.concat([i1.unsqueeze(dim=1),
+                              j1.unsqueeze(dim=1),
+                              h1.unsqueeze(dim=1),
+                              w1.unsqueeze(dim=1),
+                              i2.unsqueeze(dim=1),
+                              j2.unsqueeze(dim=1),
+                              h2.unsqueeze(dim=1),
+                              w2.unsqueeze(dim=1)], dim=1)
 
         relative_flip = samples['relative_flip']
         flip_delta_j = samples['flip_delta_j']
@@ -331,7 +342,9 @@ if __name__ == '__main__':
         mask = tensor_batch_to_list(mask)
 
         #img0 = draw_crop_boxes(img0, crops)
-        #img0 = draw_bboxes(img0, boxes)
+        img0 = draw_bboxes(img0, boxes=boxes0)
+        img1 = draw_bboxes(img1, boxes=boxes1)
+        img2 = draw_bboxes(img2, boxes=boxes2)
         img1 = [gray_out_mask(img, mask, patch_size, alpha=0.5) for img, mask in zip(img1, mask)]
         imgs = interleave_lists(img0, img1, img2)
         images.extend(imgs)
