@@ -61,7 +61,6 @@ def train_one_epoch(model: torch.nn.Module,
         update_mm = (data_iter_step % accum_iter == 0)
 
         if args.loss_type in ['sim',]:
-
             x0 = samples['x0']
             x1 = samples['x1']
             x2 = samples['x2']

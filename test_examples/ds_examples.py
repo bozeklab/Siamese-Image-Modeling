@@ -9,8 +9,6 @@ from torch.utils.data import RandomSampler, BatchSampler, DataLoader
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.utils import draw_bounding_boxes
-import torchvision.transforms as T
-from torchvision.ops import masks_to_boxes
 
 from main_pretrain import DataAugmentationForSIM
 from util.datasets import ImagenetWithMask
@@ -87,6 +85,15 @@ def create_image_grid(images):
 
     grid = grid.astype(np.uint8)
 
+    scale_percent = 150  # percent of original size
+    width = int(grid.shape[1] * scale_percent / 100)
+    height = int(grid.shape[0] * scale_percent / 100)
+    dim = (width, height)
+
+    # resize image
+    grid = cv2.resize(grid, dim, interpolation=cv2.INTER_AREA)
+    cv2.imwrite("/Users/piotrwojcik/PycharmProjects/Siamese-Image-Modeling/figs/grid_image.png", grid)
+
     # Display the grid image using OpenCV
     cv2.imshow("image", grid)
     cv2.waitKey(0)
@@ -149,7 +156,13 @@ def draw_bboxes(images, boxes):
     boxes = boxes.float()
 
     for idx, image in enumerate(images):
-        annotated_image = draw_bounding_boxes(denormalize(image), boxes[idx], width=2, colors="red")
+        labels = [str(num) for num in list(range(boxes[idx].shape[0]))]
+        mask = torch.all(boxes[idx] != -1, dim=1)
+        labels = np.array(labels)
+        labels = labels[mask].tolist()
+
+        annotated_image = draw_bounding_boxes(denormalize(image), boxes[idx, mask, :], labels=labels,
+                                              width=1, colors="red")
         annotated_images.append(normalize(annotated_image))
 
     annotated_images = [img for img in annotated_images]
@@ -176,7 +189,7 @@ def get_args_parser():
     parser.add_argument('--input_size', default=352, type=int,
                         help='images input size')
 
-    parser.add_argument('--num_boxes', default=225, type=int,
+    parser.add_argument('--num_boxes', default=100, type=int,
                         help='maximal number of boxes')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,

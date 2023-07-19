@@ -156,8 +156,10 @@ class SingleRandomResizedCrop(transforms.RandomResizedCrop):
             ratio_h = self.size / old_h
         _boxes = _boxes.float()
 
-        _boxes[:, 0::2] *= ratio_w
-        _boxes[:, 1::2] *= ratio_h
+        mask = torch.all(_boxes != -1, dim=1)
+
+        _boxes[mask, 0::2] *= ratio_w
+        _boxes[mask, 1::2] *= ratio_h
 
         return _boxes.int()
 
@@ -189,8 +191,11 @@ class Resize(transforms.Resize):
             ratio_h = self.size / old_h
 
         _boxes = boxes.float()
-        _boxes[:, 0::2] *= ratio_w
-        _boxes[:, 1::2] *= ratio_h
+
+        mask = torch.all(_boxes != -1, dim=1)
+
+        _boxes[mask, 0::2] *= ratio_w
+        _boxes[mask, 1::2] *= ratio_h
 
         return _boxes.int()
 
@@ -214,14 +219,15 @@ class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
     """
     def flip_boxes(self, boxes, width):
         _boxes = boxes.detach().clone()
+        mask = torch.all(_boxes != -1, dim=1)
 
         w = _boxes[:, 2] - _boxes[:, 0]
 
-        _boxes[:, 0::2] *= -1
-        _boxes[:, 0::2] += width - 1
+        _boxes[mask, 0::2] *= -1
+        _boxes[mask, 0::2] += width - 1
 
-        _boxes[:, 0] -= w
-        _boxes[:, 2] += w
+        _boxes[mask, 0] -= w
+        _boxes[mask, 2] += w
         return _boxes
 
     def forward(self, img, boxes):

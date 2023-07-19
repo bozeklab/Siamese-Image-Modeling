@@ -200,6 +200,7 @@ class DataAugmentationForSIM(object):
         ])
 
     def __call__(self, image, boxes):
+        boxes = _pad_boxes(boxes, self.args.num_boxes)
         image, boxes = self.resize(image, boxes)
         boxes0 = boxes.clone()
         spatial_image1, flip1, boxes1 = self.random_flip(image, boxes)
@@ -231,9 +232,9 @@ class DataAugmentationForSIM(object):
             'delta_w': w2/w1,
             'relative_flip': relative_flip,
             'flip_delta_j': (W-j1-j2)/w1,
-            'boxes0': _pad_boxes(boxes0, self.args.num_boxes),
-            'boxes1': _pad_boxes(boxes1, self.args.num_boxes),
-            'boxes2': _pad_boxes(boxes2, self.args.num_boxes)
+            'boxes0': boxes0,
+            'boxes1': boxes1,
+            'boxes2': boxes2,
         }
 
     def __repr__(self):
