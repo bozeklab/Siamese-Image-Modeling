@@ -140,7 +140,7 @@ class SingleRandomResizedCrop(transforms.RandomResizedCrop):
     def rescale_boxes(self, boxes, i, j, old_h, old_w):
         """Rescale bounding boxes according to the crop parameters"""
 
-        _boxes = boxes.detach().clone()
+        _boxes = boxes.clone()
         _boxes[:, 0::2] -= j
         _boxes[:, 1::2] -= i
         for i in range(_boxes.shape[0]):
@@ -181,7 +181,7 @@ class Resize(transforms.Resize):
         super(Resize, self).__init__(size, interpolation)
 
     def rescale_boxes(self, boxes, old_h, old_w):
-        _boxes = boxes.detach().clone()
+        _boxes = boxes.clone()
 
         if isinstance(self.size, tuple):
             ratio_w = self.size[1] / old_w
@@ -218,7 +218,7 @@ class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
         p (float): probability of the image being flipped. Default value is 0.5
     """
     def flip_boxes(self, boxes, width):
-        _boxes = boxes.detach().clone()
+        _boxes = boxes.clone()
         mask = torch.all(_boxes != -1, dim=1)
 
         w = _boxes[:, 2] - _boxes[:, 0]
