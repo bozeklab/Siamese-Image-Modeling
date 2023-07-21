@@ -425,6 +425,10 @@ class SiameseIMViT(nn.Module):
         online_x1 = self.patch_embed(x1)
         online_x1 = online_x1 + self.pos_embed[:, 1:, :]
         online_x1 = online_x1[~mask.bool()].view(online_x1.shape[0], -1, online_x1.shape[-1])
+
+        print('!!!')
+        print('online_x1.shape == ', online_x1)
+
         # add cls token
         cls_tokens = self.cls_token.expand(online_x1.shape[0], -1, -1) + self.pos_embed[:, 0, :].unsqueeze(1)
         online_x1 = torch.cat((cls_tokens, online_x1), dim=1)
@@ -459,13 +463,7 @@ class SiameseIMViT(nn.Module):
         # predictor projection
         x = self.decoder_pred(x)
 
-        print('mask.shape == ', mask.shape)
-        print('x.shape == ', x.shape)
-        print('x2_embed.shape == ', x2_embed.shape[1])
-
         pred = x[:, -x2_embed.shape[1]:]
-
-        print('pred.shape == ', pred.shape)
 
         # forward target encoder
         with torch.no_grad():
