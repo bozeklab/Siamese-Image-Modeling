@@ -21,7 +21,9 @@ import torch.nn as nn
 
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
-from models_vit import Block, CrossBlock, PatchEmbed 
+from models_vit import Block, CrossBlock, PatchEmbed
+
+from torchvision.ops import roi_align
 
 
 class PermuteBN(nn.Module):
@@ -42,9 +44,8 @@ class PermuteBN(nn.Module):
 class SiameseIMViT(nn.Module):
     """  SiameseIM with VisionTransformer backbone
     """
-    def __init__(self, img_size=224, patch_size=16, in_chans=3,
-                 embed_dim=1024, depth=24, num_heads=16,
-                 decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
+    def __init__(self, img_size=224, patch_size=16, box_patch_size=8, in_chans=3, embed_dim=1024,
+                 depth=24, num_heads=16, decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
                  mlp_ratio=4., norm_layer=LayerNorm, norm_pix_loss=False, args=None):
         super().__init__()
         self.norm_pix_loss = norm_pix_loss
@@ -53,7 +54,13 @@ class SiameseIMViT(nn.Module):
 
         # --------------------------------------------------------------------------
         # encoder specifics
+
+        # Encoder grid embedding
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+
+        # Boxes embedding
+        self.box_embed = PatchEmbed(box_patch_size, box_patch_size, in_chans, embed_dim)
+
         num_patches = self.patch_embed.num_patches
         self.num_patches = num_patches
 
@@ -255,6 +262,27 @@ class SiameseIMViT(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], 3, h * p, h * p))
         return imgs
 
+    def extract_box_feature(self, x, boxes_info, scale_factor):
+        h, w = self.patch_embed.grid_size
+        num_box = boxes_info.shape[1]
+        batch_size = x.shape[0]
+        x = x.view(batch_size, h, w, self.embed_dim).permute(0, 3, 1, 2)
+        batch_index = torch.arange(0.0, batch_size).repeat(num_box).view(num_box, -1) \
+            .transpose(0, 1).flatten(0, 1).to(x.device)
+        roi_box_info = boxes_info.view(-1, 4).to(x.device)
+
+        roi_info = torch.stack((batch_index, roi_box_info[:, 0],
+                                roi_box_info[:, 1], roi_box_info[:, 2],
+                                roi_box_info[:, 3]), dim=1).to(x.device)
+        aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
+                                output_size=(self.patch_embed_size, self.patch_embed_size))
+
+        aligned_out.view(batch_size, num_box, self.embed_dim, self.patch_embed_size, self.patch_embed_size)[
+            torch.where(boxes_info[:, :, 0] == -1)] = 0
+        aligned_out.view(-1, self.embed_dim, self.patch_embed_size, self.patch_embed_size)
+
+        return aligned_out
+
     def random_masking(self, x, mask_ratio):
         """
         Perform per-sample random masking by per-sample shuffling.
@@ -430,7 +458,13 @@ class SiameseIMViT(nn.Module):
 
         # predictor projection
         x = self.decoder_pred(x)
+
+        print('x.shape == ', x.shape)
+        print('x2_embed.shape == ', x2_embed.shape[1])
+
         pred = x[:, -x2_embed.shape[1]:]
+
+        print('pred.shape == ', pred.shape)
 
         # forward target encoder
         with torch.no_grad():
