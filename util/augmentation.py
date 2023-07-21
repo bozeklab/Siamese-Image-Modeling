@@ -221,7 +221,7 @@ class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
         _boxes = boxes.clone()
         mask = torch.all(_boxes != -1, dim=1)
 
-        w = _boxes[:, 2] - _boxes[:, 0]
+        w = _boxes[mask, 2] - _boxes[mask, 0]
 
         _boxes[mask, 0::2] *= -1
         _boxes[mask, 0::2] += width - 1
