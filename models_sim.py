@@ -426,9 +426,6 @@ class SiameseIMViT(nn.Module):
         online_x1 = online_x1 + self.pos_embed[:, 1:, :]
         online_x1 = online_x1[~mask.bool()].view(online_x1.shape[0], -1, online_x1.shape[-1])
 
-        print('!!!')
-        print('online_x1.shape == ', online_x1.shape)
-
         # add cls token
         cls_tokens = self.cls_token.expand(online_x1.shape[0], -1, -1) + self.pos_embed[:, 0, :].unsqueeze(1)
         online_x1 = torch.cat((cls_tokens, online_x1), dim=1)
@@ -486,6 +483,10 @@ class SiameseIMViT(nn.Module):
                     target_x2 = blk(target_x2)
 
             target = target_x2[:, 1:, :]
+
+        print('!!!!')
+        print(pred.shape)
+        print(target.shape)
 
         # compute loss
         outputs = {}
