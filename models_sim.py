@@ -459,6 +459,7 @@ class SiameseIMViT(nn.Module):
         # predictor projection
         x = self.decoder_pred(x)
 
+        print('mask.shape == ', mask.shape)
         print('x.shape == ', x.shape)
         print('x2_embed.shape == ', x2_embed.shape[1])
 
