@@ -283,6 +283,14 @@ class SiameseIMViT(nn.Module):
 
         return aligned_out
 
+    def add_box_feature(self, x, boxes_features, boxes_info):
+        batch_size = x.shape[0]
+        num_box = boxes_info.shape[1]
+        boxes_features = self.instance_embed(boxes_features).squeeze().view(batch_size, num_box, -1)
+
+        added_out = torch.cat((x, boxes_features), dim=1)
+        return added_out
+
     def random_masking(self, x, mask_ratio):
         """
         Perform per-sample random masking by per-sample shuffling.
@@ -413,7 +421,7 @@ class SiameseIMViT(nn.Module):
         else:
             return self.forward_mae(*args, **kwargs)
 
-    def forward_sim(self, x1, x2, rel_pos_21, mm, update_mm, mask=None):
+    def forward_sim(self, x1, x2, boxes1, boxes2, rel_pos_21, mm, update_mm, mask=None):
         # forward online encoder
         if self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
@@ -484,9 +492,8 @@ class SiameseIMViT(nn.Module):
 
             target = target_x2[:, 1:, :]
 
-        print('!!!!')
-        print(pred.shape)
-        print(target.shape)
+        pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size)
+        target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size)
 
         # compute loss
         outputs = {}
