@@ -49,6 +49,7 @@ class SiameseIMViT(nn.Module):
                  mlp_ratio=4., norm_layer=LayerNorm, norm_pix_loss=False, args=None):
         super().__init__()
         self.norm_pix_loss = norm_pix_loss
+        self.patch_size = patch_size
         self.args = args
         decoder_embed_dim = args.decoder_embed_dim
 
