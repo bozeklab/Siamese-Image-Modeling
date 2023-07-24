@@ -50,6 +50,7 @@ class SiameseIMViT(nn.Module):
         super().__init__()
         self.norm_pix_loss = norm_pix_loss
         self.patch_size = patch_size
+        self.embed_dim = embed_dim
         self.args = args
         decoder_embed_dim = args.decoder_embed_dim
 
@@ -276,11 +277,11 @@ class SiameseIMViT(nn.Module):
                                 roi_box_info[:, 1], roi_box_info[:, 2],
                                 roi_box_info[:, 3]), dim=1).to(x.device)
         aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
-                                output_size=(self.patch_embed_size, self.patch_embed_size))
+                                output_size=8)
 
-        aligned_out.view(batch_size, num_box, self.embed_dim, self.patch_embed_size, self.patch_embed_size)[
+        aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[
             torch.where(boxes_info[:, :, 0] == -1)] = 0
-        aligned_out.view(-1, self.embed_dim, self.patch_embed_size, self.patch_embed_size)
+        aligned_out.view(-1, self.embed_dim, 8, 8)
 
         return aligned_out
 
