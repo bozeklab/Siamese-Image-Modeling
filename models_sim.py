@@ -499,6 +499,12 @@ class SiameseIMViT(nn.Module):
         target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
                                                          mask=mask)
 
+        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
+        target_boxes_features = self.box_embed(target_boxes_features).squeeze()
+
+        print('!!!')
+        print(pred_boxes_features.shape)
+
         # compute loss
         outputs = {}
         with torch.cuda.amp.autocast(enabled=False):
@@ -514,10 +520,6 @@ class SiameseIMViT(nn.Module):
         
         dense_pred = pred.reshape(-1, pred.shape[-1])
         dense_target = target.reshape(-1, target.shape[-1])
-
-        print('!!!')
-        print(dense_pred.shape)
-        print(dense_target.shape)
 
         # compute pos term
         pos_term = ((dense_pred - dense_target)**2).sum(-1).mean()
