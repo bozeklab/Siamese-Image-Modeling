@@ -495,8 +495,6 @@ class SiameseIMViT(nn.Module):
         target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
                                                          mask=mask)
 
-        batch_size = boxes1.shape[0]
-        num_boxes = pred_boxes_features.shape[0] / batch_size
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
         target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
