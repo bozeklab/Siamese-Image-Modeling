@@ -64,6 +64,9 @@ class SiameseIMViT(nn.Module):
         self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
                                     in_chans=embed_dim, embed_dim=embed_dim)
 
+        self.batch_index = torch.arange(0.0, args.batch_size).repeat(args.num_boxes).view(args.num_boxes, -1)\
+            .transpose(0, 1).flatten(0, 1).to(x.device)
+
         num_patches = self.patch_embed.num_patches
         self.num_patches = num_patches
 
@@ -270,11 +273,10 @@ class SiameseIMViT(nn.Module):
         num_box = boxes_info.shape[1]
         batch_size = x.shape[0]
         x = x.view(batch_size, h, w, self.embed_dim).permute(0, 3, 1, 2)
-        batch_index = torch.arange(0.0, batch_size).repeat(num_box).view(num_box, -1) \
-            .transpose(0, 1).flatten(0, 1).to(x.device)
+
         roi_box_info = boxes_info.view(-1, 4)
 
-        roi_info = torch.stack((batch_index, roi_box_info[:, 0],
+        roi_info = torch.stack((self.batch_index, roi_box_info[:, 0],
                                 roi_box_info[:, 1], roi_box_info[:, 2],
                                 roi_box_info[:, 3]), dim=1).to(x.device)
         aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
