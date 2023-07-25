@@ -58,10 +58,11 @@ class SiameseIMViT(nn.Module):
         # encoder specifics
 
         # Encoder grid embedding
-        self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+        self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
 
         # Boxes embedding
-        self.box_embed = PatchEmbed(box_patch_size, box_patch_size, in_chans, embed_dim)
+        self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
+                                    in_chans=embed_dim, embed_dim=embed_dim)
 
         num_patches = self.patch_embed.num_patches
         self.num_patches = num_patches
