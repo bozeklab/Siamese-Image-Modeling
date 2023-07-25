@@ -116,6 +116,16 @@ def train_one_epoch(model: torch.nn.Module,
 
         metric_logger.update(loss=loss_value)
 
+        min_lr = 10.
+        max_lr = 0.
+        for group in optimizer.param_groups:
+            min_lr = min(min_lr, group["lr"])
+            max_lr = max(max_lr, group["lr"])
+
+        print('!!!!')
+        print(min_lr)
+        print(max_lr)
+
         lr = optimizer.param_groups[0]["lr"]
         metric_logger.update(lr=lr)
 
