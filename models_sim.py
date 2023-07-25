@@ -504,6 +504,9 @@ class SiameseIMViT(nn.Module):
                                                          mask=mask)
 
         batch_size, num_boxes, _, _ = pred_boxes_features.shape
+        print('!!!!!!!')
+        print(batch_size)
+        print(num_boxes)
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze().view(batch_size, num_boxes, -1)
         target_boxes_features = self.box_embed(target_boxes_features).squeeze().view(batch_size, num_boxes, -1)
 
