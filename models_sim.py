@@ -506,6 +506,10 @@ class SiameseIMViT(nn.Module):
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
         target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
+        print('!!!')
+        print(target.shape)
+        print(target_boxes_features.shape)
+
         pred = torch.cat((pred, pred_boxes_features), dim=1)
         target = torch.cat((target, target_boxes_features), dim=1)
 
