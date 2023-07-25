@@ -276,6 +276,10 @@ class SiameseIMViT(nn.Module):
 
         roi_box_info = boxes_info.view(-1, 4)
 
+        print('!!!')
+        print(self.batch_index.device)
+        print(roi_box_info.device)
+
         roi_info = torch.stack((self.batch_index, roi_box_info[:, 0],
                                 roi_box_info[:, 1], roi_box_info[:, 2],
                                 roi_box_info[:, 3]), dim=1).to(x.device)
