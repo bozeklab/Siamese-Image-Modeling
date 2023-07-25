@@ -511,24 +511,32 @@ class SiameseIMViT(nn.Module):
         # compute loss
         outputs = {}
         with torch.cuda.amp.autocast(enabled=False):
-            loss = self.compute_unigrad_loss(pred.float(), target.float())
-        outputs['loss'] = loss.item()
+            loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
+            loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
+            loss = loss_grid + loss_boxes
+
+        outputs['loss_sim'] = loss.item()
+        outputs['loss_sim_grid'] = loss_grid.item()
+        outputs['loss_sim_boxes'] = loss_boxes.item()
 
         return loss, outputs
 
     def compute_unigrad_loss(self, pred, target):
-        dense_pred = self.student_norm(pred)
+        pred = self.student_norm(pred)
         with torch.no_grad():
-            dense_target = self.teacher_norm(target)
+            target = self.teacher_norm(target)
+
+        dense_pred = pred.reshape(-1, pred.shape[-1])
+        dense_target = target.reshape(-1, target.shape[-1])
 
         # compute pos term
-        pos_term = ((dense_pred - dense_target)**2).sum(-1).mean()
+        pos_term = ((dense_pred - dense_target) ** 2).sum(-1).mean()
 
         # compute neg term
         correlation = (dense_target.T @ dense_target) / dense_target.shape[0]
         torch.distributed.all_reduce(correlation)
         correlation = correlation / torch.distributed.get_world_size()
-        
+
         neg_term = torch.diagonal(dense_pred @ correlation @ dense_pred.T).mean()
 
         loss = (pos_term + self.args.neg_weight * neg_term) / pred.shape[-1]
