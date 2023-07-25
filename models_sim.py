@@ -502,6 +502,9 @@ class SiameseIMViT(nn.Module):
         target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2,
                                                          scale_factor=1. / self.patch_size, mask=mask)
 
+        print('!!!')
+        print(target_boxes_features.shape)
+
         # compute loss
         outputs = {}
         with torch.cuda.amp.autocast(enabled=False):
