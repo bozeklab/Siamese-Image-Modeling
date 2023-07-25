@@ -272,7 +272,7 @@ class SiameseIMViT(nn.Module):
         x = x.view(batch_size, h, w, self.embed_dim).permute(0, 3, 1, 2)
         batch_index = torch.arange(0.0, batch_size).repeat(num_box).view(num_box, -1) \
             .transpose(0, 1).flatten(0, 1).to(x.device)
-        roi_box_info = boxes_info.view(-1, 4).to(x.device)
+        roi_box_info = boxes_info.view(-1, 4)
 
         roi_info = torch.stack((batch_index, roi_box_info[:, 0],
                                 roi_box_info[:, 1], roi_box_info[:, 2],
