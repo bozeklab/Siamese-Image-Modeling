@@ -505,6 +505,8 @@ class SiameseIMViT(nn.Module):
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
         target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
+        print('!!!')
+        print(pred_boxes_features.shape)
 
         # compute loss
         outputs = {}
