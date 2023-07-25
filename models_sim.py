@@ -279,10 +279,7 @@ class SiameseIMViT(nn.Module):
         aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
                                 output_size=8)
 
-        aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[mask] = 0
-        aligned_out.view(-1, self.embed_dim, 8, 8)
-
-        return aligned_out
+        return aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[mask]
 
     def add_box_feature(self, x, boxes_features, boxes_info):
         batch_size = x.shape[0]
