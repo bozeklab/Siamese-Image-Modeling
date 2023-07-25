@@ -323,6 +323,9 @@ def main(args):
     model = models_sim.__dict__[args.model](norm_pix_loss=args.norm_pix_loss, args=args)
     model.to(device)
     model.batch_index.to(device)
+
+    print('!!!!!')
+    print(model.batch_index.device)
     model_without_ddp = model
 
     eff_batch_size = args.batch_size * args.accum_iter * misc.get_world_size()
