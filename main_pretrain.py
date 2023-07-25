@@ -57,7 +57,7 @@ def get_args_parser():
     parser.add_argument('--input_size', default=224, type=int,
                         help='images input size')
 
-    parser.add_argument('--num_boxes', default=225, type=int,
+    parser.add_argument('--num_boxes', default=150, type=int,
                         help='maximal number of boxes')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,
