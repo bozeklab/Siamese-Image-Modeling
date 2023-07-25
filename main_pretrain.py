@@ -325,6 +325,7 @@ def main(args):
     model.batch_index.to(device)
 
     print('!!!!!')
+    print(model.device)
     print(model.batch_index.device)
     model_without_ddp = model
 
