@@ -494,13 +494,14 @@ class SiameseIMViT(nn.Module):
         mask2 = torch.all(boxes2 != -1, dim=-1)
         mask = torch.logical_and(mask1, mask2)
 
-        pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1,
-                                                       scale_factor=1. / self.patch_size, mask=mask)
-        target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2,
-                                                         scale_factor=1. / self.patch_size, mask=mask)
+        pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size,
+                                                       mask=mask)
+        target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
+                                                         mask=mask)
 
         print('!!!')
-        print(target_boxes_features.shape)
+        print(pred.shape)
+        print(target.shape)
 
         # compute loss
         outputs = {}
