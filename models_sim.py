@@ -61,7 +61,7 @@ class SiameseIMViT(nn.Module):
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
 
         # Boxes embedding
-        self.box_embed = PatchEmbed(box_patch_size, box_patch_size, in_chans, embed_dim)
+        self.box_embed = PatchEmbed(box_patch_size, in_chans, embed_dim)
 
         num_patches = self.patch_embed.num_patches
         self.num_patches = num_patches
@@ -502,11 +502,9 @@ class SiameseIMViT(nn.Module):
         target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
                                                          mask=mask)
 
-        #pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
-        #target_boxes_features = self.box_embed(target_boxes_features).squeeze()
+        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
+        target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
-        print('!!!')
-        print(pred_boxes_features.shape)
 
         # compute loss
         outputs = {}
