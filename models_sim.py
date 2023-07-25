@@ -502,8 +502,8 @@ class SiameseIMViT(nn.Module):
 
         pred = pred.reshape(-1, pred.shape[-1])
         target = target.reshape(-1, target.shape[-1])
-        pred = torch.cat((pred, pred_boxes_features), dim=1)
-        target = torch.cat((target, target_boxes_features), dim=1)
+        pred = torch.cat((pred, pred_boxes_features), dim=0)
+        target = torch.cat((target, target_boxes_features), dim=0)
 
         # compute loss
         outputs = {}
