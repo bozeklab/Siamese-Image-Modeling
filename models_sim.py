@@ -503,12 +503,10 @@ class SiameseIMViT(nn.Module):
         target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
                                                          mask=mask)
 
-        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
-        target_boxes_features = self.box_embed(target_boxes_features).squeeze()
+        batch_size, num_boxes, _ = pred_boxes_features.shape
+        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze().view(batch_size, num_boxes, -1)
+        target_boxes_features = self.box_embed(target_boxes_features).squeeze().view(batch_size, num_boxes, -1)
 
-        print('!!!')
-        print(target.shape)
-        print(target_boxes_features.shape)
 
         pred = torch.cat((pred, pred_boxes_features), dim=1)
         target = torch.cat((target, target_boxes_features), dim=1)
