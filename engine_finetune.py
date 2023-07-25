@@ -79,6 +79,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             min_lr = min(min_lr, group["lr"])
             max_lr = max(max_lr, group["lr"])
 
+        print('!!!')
+        print(min_lr)
+        print(max_lr)
+
         metric_logger.update(lr=max_lr)
 
         loss_value_reduce = misc.all_reduce_mean(loss_value)
