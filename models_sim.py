@@ -65,7 +65,7 @@ class SiameseIMViT(nn.Module):
                                     in_chans=embed_dim, embed_dim=embed_dim)
 
         self.batch_index = torch.arange(0.0, args.batch_size).repeat(args.num_boxes).view(args.num_boxes, -1)\
-            .transpose(0, 1).flatten(0, 1)
+            .transpose(0, 1).flatten(0, 1).to(self.device)
 
         num_patches = self.patch_embed.num_patches
         self.num_patches = num_patches
