@@ -285,14 +285,6 @@ class SiameseIMViT(nn.Module):
 
         return aligned_out
 
-    def add_box_feature(self, x, boxes_features, boxes_info):
-        batch_size = x.shape[0]
-        num_box = boxes_info.shape[1]
-        boxes_features = self.instance_embed(boxes_features).squeeze().view(batch_size, num_box, -1)
-
-        added_out = torch.cat((x, boxes_features), dim=1)
-        return added_out
-
     def random_masking(self, x, mask_ratio):
         """
         Perform per-sample random masking by per-sample shuffling.
@@ -505,9 +497,11 @@ class SiameseIMViT(nn.Module):
 
         batch_size = boxes1.shape[0]
         num_boxes = pred_boxes_features.shape[0] / batch_size
-        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze().view(batch_size, num_boxes, -1)
-        target_boxes_features = self.box_embed(target_boxes_features).squeeze().view(batch_size, num_boxes, -1)
+        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
+        target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
+        pred = pred.reshape(-1, pred.shape[-1])
+        target = target.reshape(-1, target.shape[-1])
         pred = torch.cat((pred, pred_boxes_features), dim=1)
         target = torch.cat((target, target_boxes_features), dim=1)
 
@@ -520,12 +514,9 @@ class SiameseIMViT(nn.Module):
         return loss, outputs
 
     def compute_unigrad_loss(self, pred, target):
-        pred = self.student_norm(pred)
+        dense_pred = self.student_norm(pred)
         with torch.no_grad():
-            target = self.teacher_norm(target)
-        
-        dense_pred = pred.reshape(-1, pred.shape[-1])
-        dense_target = target.reshape(-1, target.shape[-1])
+            dense_target = self.teacher_norm(target)
 
         # compute pos term
         pos_term = ((dense_pred - dense_target)**2).sum(-1).mean()
