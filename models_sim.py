@@ -506,15 +506,14 @@ class SiameseIMViT(nn.Module):
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
         target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
+        pred = torch.cat((pred, pred_boxes_features), dim=1)
+        target = torch.cat((target, target_boxes_features), dim=1)
+
         # compute loss
         outputs = {}
         with torch.cuda.amp.autocast(enabled=False):
-            loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
-            loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
-        loss = loss_grid + loss_boxes
-        outputs['loss_sim_grid'] = loss_grid.item()
-        outputs['loss_sim_boxes'] = loss_boxes.item()
-        outputs['loss_sim_total'] = loss.item()
+            loss = self.compute_unigrad_loss(pred.float(), target.float())
+        outputs['loss'] = loss.item()
 
         return loss, outputs
 
