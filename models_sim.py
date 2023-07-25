@@ -264,7 +264,7 @@ class SiameseIMViT(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], 3, h * p, h * p))
         return imgs
 
-    def extract_box_feature(self, x, boxes_info, scale_factor):
+    def extract_box_feature(self, x, boxes_info, scale_factor, mask):
         h, w = self.patch_embed.grid_size
         num_box = boxes_info.shape[1]
         batch_size = x.shape[0]
@@ -279,8 +279,7 @@ class SiameseIMViT(nn.Module):
         aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
                                 output_size=8)
 
-        aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[
-            torch.where(boxes_info[:, :, 0] == -1)] = 0
+        aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[mask] = 0
         aligned_out.view(-1, self.embed_dim, 8, 8)
 
         return aligned_out
@@ -493,6 +492,10 @@ class SiameseIMViT(nn.Module):
                     target_x2 = blk(target_x2)
 
             target = target_x2[:, 1:, :]
+
+        mask1 = torch.all(boxes1 != -1, dim=-1)
+        mask2 = torch.all(boxes2 != -1, dim=-1)
+        mask = torch.logical_and(mask1, mask2)
 
         pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size)
         target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size)
