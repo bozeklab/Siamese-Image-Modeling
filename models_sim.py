@@ -515,6 +515,8 @@ class SiameseIMViT(nn.Module):
             loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
             loss = loss_boxes
 
+        print('dupa4')
+
         outputs['loss_sim'] = loss.item()
         #outputs['loss_sim_grid'] = loss_grid.item()
         #outputs['loss_sim_boxes'] = loss_boxes.item()
