@@ -88,9 +88,9 @@ class SiameseIMViT(nn.Module):
             self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
             if hasattr(self, 'cls_token'):
-                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches+1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
+                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches+1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
             else:
-                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_embed_dim), requires_grad=False)
+                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, decoder_embed_dim), requires_grad=False)
 
             self.decoder_blocks = nn.ModuleList([
                 Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
@@ -104,9 +104,9 @@ class SiameseIMViT(nn.Module):
             self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
             if hasattr(self, 'cls_token'):
-                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches+1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
+                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches+1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
             else:
-                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_embed_dim), requires_grad=False)
+                self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, decoder_embed_dim), requires_grad=False)
 
             if args.projector_depth > 0:
                 self.projector_decoder_blocks = nn.ModuleList([
