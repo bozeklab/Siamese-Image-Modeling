@@ -491,8 +491,6 @@ class SiameseIMViT(nn.Module):
         mask2 = torch.all(boxes2 != -1, dim=-1)
         mask = torch.logical_and(mask1, mask2)
 
-        print('dupa')
-
         with torch.no_grad():
             pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size,
                                                            mask=mask)
@@ -501,8 +499,6 @@ class SiameseIMViT(nn.Module):
 
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
         target_boxes_features = self.box_embed(target_boxes_features).squeeze()
-
-        print('dupa3')
 
         #pred = pred.reshape(-1, pred.shape[-1])
         #target = target.reshape(-1, target.shape[-1])
@@ -513,8 +509,6 @@ class SiameseIMViT(nn.Module):
             #loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
             loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
             loss = loss_boxes
-
-        print('dupa4')
 
         outputs['loss_sim'] = loss.item()
         #outputs['loss_sim_grid'] = loss_grid.item()
