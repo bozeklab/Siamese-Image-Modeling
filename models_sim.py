@@ -503,6 +503,8 @@ class SiameseIMViT(nn.Module):
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
         target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
+        print('dupa3')
+
         #pred = pred.reshape(-1, pred.shape[-1])
         #target = target.reshape(-1, target.shape[-1])
 
