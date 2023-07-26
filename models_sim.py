@@ -64,15 +64,14 @@ class SiameseIMViT(nn.Module):
         self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
                                     in_chans=embed_dim, embed_dim=embed_dim)
 
-        num_patches = self.patch_embed.num_patches
-        self.num_patches = num_patches
+        self.num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         if args.use_abs_pos_emb:
             if hasattr(self, 'cls_token'):
-                self.pos_embed = nn.Parameter(torch.zeros(1, num_patches+1, embed_dim), requires_grad=False)  # fixed sin-cos embedding
+                self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches+1, embed_dim), requires_grad=False)  # fixed sin-cos embedding
             else:
-                self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim), requires_grad=False)  # fixed sin-cos embedding
+                self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim), requires_grad=False)  # fixed sin-cos embedding
 
         dpr = [x.item() for x in torch.linspace(0, args.drop_path_rate, depth)]
         self.blocks = nn.ModuleList([
@@ -507,7 +506,7 @@ class SiameseIMViT(nn.Module):
         with torch.cuda.amp.autocast(False):
             loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
             loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
-            loss = loss_boxes
+            loss = loss_grid + loss_boxes
 
         outputs['loss_sim'] = loss.item()
         outputs['loss_sim_grid'] = loss_grid.item()
