@@ -17,7 +17,7 @@ from torchvision import datasets, transforms
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
-from util.img_with_picke_dataset import ImgWithPickleDataset
+from util.img_with_picke_dataset import ImgWithPickledBoxesDataset
 
 
 def build_transform(is_train, args):
@@ -57,7 +57,7 @@ def build_transform(is_train, args):
     return transforms.Compose(t)
 
 
-class ImagenetWithMask(ImgWithPickleDataset):
+class ImagenetWithMask(ImgWithPickledBoxesDataset):
     def __init__(self, root,
                  transform=None,
                  with_blockwise_mask=False, ### !!! set to True, enable blockwise masking

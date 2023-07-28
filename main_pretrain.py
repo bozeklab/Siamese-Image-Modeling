@@ -155,22 +155,62 @@ def get_args_parser():
     return parser
 
 
-def _pad_boxes(boxes, num_boxes):
-    fake_box = torch.tensor(4 * [-1])
+def _pad_boxes(items, num_total):
+    fake_element = torch.tensor(4 * [-1])
+    if items is None:
+        return fake_element.expand(num_total, -1)
 
-    if boxes is None:
-        return fake_box.expand(num_boxes, -1)
+    boxes_available = items.shape[0]
 
-    boxes_available = boxes.shape[0]
+    if items.shape[0] <= num_total:
+        padding_length = num_total - boxes_available
+        fake_box = fake_element.expand(padding_length, -1)
+        items = torch.cat([items, fake_box])
+        return items
 
-    if boxes.shape[0] <= num_boxes:
-        padding_length = num_boxes - boxes_available
-        fake_box = fake_box.expand(padding_length, -1)
-        boxes = torch.cat([boxes, fake_box])
-        return boxes
+    idx = random.sample(range(boxes_available), num_total)
+    return items[idx]
 
-    idx = random.sample(range(boxes_available), num_boxes)
-    return boxes[idx]
+
+def _pad_classes(items, num_total):
+    fake_element = torch.tensor(-1)
+    if items is None:
+        return fake_element.expand(num_total)
+
+    boxes_available = items.shape[0]
+
+    if items.shape[0] <= num_total:
+        padding_length = num_total - boxes_available
+        fake_box = fake_element.expand(padding_length)
+        items = torch.cat([items, fake_box])
+        return items
+
+    idx = random.sample(range(boxes_available), num_total)
+    return items[idx]
+
+
+class DataPreprocessingForSIM(object):
+    def __init__(self, args):
+        self.args = args
+
+        self.resize = Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR)
+        self.to_tensor = transforms.ToTensor()
+
+    def __call__(self, image, boxes, classes):
+        boxes = _pad_boxes(boxes, self.args.num_boxes)
+        classes = _pad_classes(classes, self.args.num_boxes)
+        image, boxes = self.resize(image, boxes)
+
+        return {'x': self.to_tensor(image),
+                'boxes': boxes,
+                'classes': classes,
+                }
+
+    def __repr__(self):
+        repr = "(DataPreprocessing,\n"
+        repr += "  transform = %s,\n" % str(self.resize) + str(self.to_tensor)
+        repr += ")"
+        return repr
 
 
 class DataAugmentationForSIM(object):

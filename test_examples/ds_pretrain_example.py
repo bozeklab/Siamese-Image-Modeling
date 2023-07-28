@@ -1,5 +1,7 @@
 import argparse
 import os
+from dataclasses import dataclass
+
 import cv2
 import numpy as np
 import torch
@@ -54,13 +56,12 @@ def gray_out_mask(image, mask, patch_size, alpha):
     return image
 
 
-def create_image_grid(images):
+def create_image_grid(images, num_cols=3):
     # Determine the dimensions of each image in the grid
     rows, cols, _ = images[0].shape
 
     # Determine the number of images and columns in the grid
     num_images = len(images)
-    num_cols = 3
 
     # Set the border size and color
     border_size = 5
@@ -150,9 +151,6 @@ def draw_crop_boxes(images, crops):
 def draw_bboxes(images, boxes):
     annotated_images = []
 
-    # Create a mask for elements where the last positions are not all -1
-    #mask = (boxes[:, :, -1] != -1).unsqueeze(-1).expand_as(boxes)
-    #boxes = boxes[mask]
     boxes = boxes.float()
 
     for idx, image in enumerate(images):
@@ -174,123 +172,21 @@ def tensor_batch_to_list(tensor):
     return tensor_list
 
 
-def get_args_parser():
-    parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
-    parser.add_argument('--batch_size', default=2, type=int,
-                        help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
-    parser.add_argument('--epochs', default=400, type=int)
-    parser.add_argument('--accum_iter', default=1, type=int,
-                        help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
+@dataclass
+class Config:
+    data_path: str
+    input_size: int
+    num_boxes: int
+    with_blockwise_mask: bool
+    crop_min: float
+    blockwise_num_masking_patches: int
+    batch_size: int
 
-    # Model parameters
-    parser.add_argument('--model', default='mae_vit_large_patch16', type=str, metavar='MODEL',
-                        help='Name of model to train')
 
-    parser.add_argument('--input_size', default=352, type=int,
-                        help='images input size')
-
-    parser.add_argument('--num_boxes', default=100, type=int,
-                        help='maximal number of boxes')
-
-    parser.add_argument('--mask_ratio', default=0.75, type=float,
-                        help='Masking ratio (percentage of removed patches).')
-
-    parser.add_argument('--norm_pix_loss', action='store_true',
-                        help='Use (per-patch) normalized pixels as targets for computing loss')
-    parser.set_defaults(norm_pix_loss=False)
-
-    parser.add_argument('--use_abs_pos_emb', default=True, action='store_true')
-    parser.add_argument('--disable_abs_pos_emb', dest='use_abs_pos_emb', action='store_false')
-    parser.add_argument('--use_shared_rel_pos_bias', default=False, action='store_true')
-
-    # Optimizer parameters
-    parser.add_argument('--weight_decay', type=float, default=0.05,
-                        help='weight decay (default: 0.05)')
-
-    parser.add_argument('--lr', type=float, default=None, metavar='LR',
-                        help='learning rate (absolute lr)')
-    parser.add_argument('--blr', type=float, default=1e-3, metavar='LR',
-                        help='base learning rate: absolute_lr = base_lr * total_batch_size / 256')
-    parser.add_argument('--min_lr', type=float, default=0., metavar='LR',
-                        help='lower lr bound for cyclic schedulers that hit 0')
-
-    parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N',
-                        help='epochs to warmup LR')
-
-    # Dataset parameters
-    parser.add_argument('--data_path', default='/Users/piotrwojcik/images_he_seg1000/positive/', type=str,
-                        help='dataset path')
-
-    parser.add_argument('--output_dir', default='./output_dir',
-                        help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='./output_dir',
-                        help='path where to tensorboard log')
-    parser.add_argument('--device', default='cuda',
-                        help='device to use for training / testing')
-    parser.add_argument('--seed', default=0, type=int)
-    parser.add_argument('--resume', default='',
-                        help='resume from checkpoint')
-
-    parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
-                        help='start epoch')
-    parser.add_argument('--num_workers', default=10, type=int)
-    parser.add_argument('--pin_mem', action='store_true',
-                        help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
-    parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
-    # parser.set_defaults(pin_mem=True)
-
-    # distributed training parameters
-    parser.add_argument('--world_size', default=1, type=int,
-                        help='number of distributed processes')
-    parser.add_argument('--local_rank', default=-1, type=int)
-    parser.add_argument('--dist_on_itp', action='store_true')
-    parser.add_argument('--dist_url', default='env://',
-                        help='url used to set up distributed training')
-
-    # SiameseIM parameters
-    # data
-    parser.add_argument('--crop_min', default=0.2, type=float)
-    parser.add_argument('--use_tcs_dataset', default=False, action='store_true')
-
-    # model
-    parser.add_argument('--decoder_embed_dim', default=512, type=int)
-    parser.add_argument('--drop_path_rate', default=0.0, type=float)
-    parser.add_argument('--init_values', default=None, type=float)
-    parser.add_argument('--projector_depth', default=2, type=int)
-    parser.add_argument('--predictor_depth', default=4, type=int)
-    parser.add_argument('--use_proj_ln', default=False, action='store_true')
-    parser.add_argument('--use_pred_ln', default=False, action='store_true')
-    parser.add_argument('--train_patch_embed', default=False, action='store_true')
-    parser.add_argument('--online_ln', default=False, action='store_true', help='also use frozen LN in online branch')
-
-    parser.add_argument('--loss_type', default='mae')
-    parser.add_argument('--neg_weight', default=0.02, type=float)
-
-    parser.add_argument('--with_blockwise_mask', default=True, action='store_true')
-    parser.add_argument('--blockwise_num_masking_patches', default=220, type=int)
-
-    # hyper-parameter
-    parser.add_argument('--mm', default=0.996, type=float)
-    parser.add_argument('--mmschedule', default='const')
-    parser.add_argument('--lambda_F', default=50, type=float)  # may no need
-    parser.add_argument('--T', default=0.2, type=float)  # check
-    parser.add_argument('--clip_grad', default=None, type=float)
-    parser.add_argument('--beta2', default=0.95, type=float)
-
-    # misc
-    parser.add_argument('--auto_resume', default=True)
-    parser.add_argument('--save_freq', default=50, type=int)
-    parser.add_argument('--save_latest_freq', default=1, type=int)
-    parser.add_argument('--fp32', default=False, action='store_true')
-    parser.add_argument('--amp_growth_interval', default=2000, type=int)
-
-    return parser
-
+args = Config(data_path='/Users/piotrwojcik/images_he_seg1000/positive/', input_size=352, with_blockwise_mask=True,
+              blockwise_num_masking_patches=220, crop_min=0.2, num_boxes=50, batch_size=2)
 
 if __name__ == '__main__':
-    args = get_args_parser()
-    args = args.parse_args()
-
     transform_train = DataAugmentationForSIM(args)
     print(f'Pre-train data transform:\n{transform_train}')
 
@@ -305,8 +201,8 @@ if __name__ == '__main__':
     dataloader_train = torch.utils.data.DataLoader(
         dataset_train, sampler=sampler_train,
         batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        pin_memory=args.pin_mem,
+        num_workers=1,
+        pin_memory=True,
         drop_last=True,
     )
 
@@ -342,8 +238,6 @@ if __name__ == '__main__':
         img2 = x2.permute(0, 2, 3, 1)
 
         patch_size = 16
-        N, H, W, C = img0.shape
-        fake_embedding = torch.rand((N, (H // patch_size) * (W // patch_size), C))
 
         #x_masked, mask, ids_restore = mask_mae(fake_embedding)
         #mask = mask.view(N, H // patch_size, W // patch_size)
