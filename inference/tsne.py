@@ -38,11 +38,11 @@ colors_per_class = ['red', 'green', 'blue', 'purple', 'pink', 'cyan',
                    'orange', 'magenta', 'lightgreen', 'yellow', 'lightblue',
                    'lightcoral', 'lightseagreen', 'darkred', 'darkorange']
 
+colors = [colors_per_class[int(l)] for l in labels]
+labels = [dlbcl_cells[int(label)] for label in labels]
 
 # Set up the Dash app
 app = Dash(__name__)
-
-colors = [colors_per_class[int(l)] for l in labels]
 
 # Create the 3D scatter plot
 fig = go.Figure(data=[go.Scatter3d(
@@ -50,12 +50,21 @@ fig = go.Figure(data=[go.Scatter3d(
     mode='markers', marker=dict(size=2, color=colors)
 )])
 
-# Set up the layout
-app.layout = html.Div([
-    dcc.Graph(id="graph-5", figure=fig, clear_on_unhover=True,
-              style={'width': '100vw', 'height': '100vh'}),
-    dcc.Tooltip(id="graph-tooltip-5", direction='bottom')
-], style={'width': '100vw', 'height': '100vh'})
+fig.update_traces(
+    hoverinfo="none",
+    hovertemplate=None,
+)
+
+app.layout = html.Div(
+    className="container",
+    children=[
+        dcc.Graph(id="graph-5", figure=fig, clear_on_unhover=True,
+                  style={'width': '100vw', 'height': '100vh'}),
+        dcc.Tooltip(id="graph-tooltip-5", direction='bottom'),
+    ],
+    style={'width': '100vw', 'height': '100vh'}
+)
+
 
 # Callback to display image and label on hover
 @app.callback(
@@ -68,18 +77,18 @@ def display_hover(hoverData):
     if hoverData is None:
         return False, no_update, no_update
 
-    hover_point = hoverData["points"][0]
-    num = hover_point["pointNumber"]
-    label = dlbcl_cells[labels[num]]
+    hoverPoint = hoverData["points"][0]
+    num = hoverPoint["pointNumber"]
 
     im_matrix = images[num]
     im_url = np_image_to_base64(im_matrix)
-    children = [html.Div([
-        html.Img(src=im_url, style={"width": "50px", 'display': 'block', 'margin': '0 auto'}),
-        html.P(label, style={'font-weight': 'bold'})
-    ])]
+    children = [
+        html.Div([
+            html.Img(src=im_url, style={"width": "50px", 'display': 'block', 'margin': '0 auto'},),
+            html.P(str(labels[num]), style={'font-weight': 'bold'})
+        ])]
 
-    return True, hover_point["bbox"], children
+    return True, hoverPoint["bbox"], children
 
 
 if __name__ == "__main__":
