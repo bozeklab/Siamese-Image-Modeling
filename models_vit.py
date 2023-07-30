@@ -19,6 +19,7 @@ import torch.nn.functional as F
 import timm.models.vision_transformer
 from timm.models.layers import Mlp, DropPath
 from timm.models.layers.helpers import to_2tuple
+from torchvision.ops import roi_align
 
 from util.misc import LayerNorm
 
@@ -26,7 +27,7 @@ from util.misc import LayerNorm
 class PatchEmbed(nn.Module):
     """ 2D Image to Patch Embedding
     """
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768, norm_layer=None, flatten=True):
+    def __init__(self, img_size=224, patch_size=16, box_patch_size=8, in_chans=3, embed_dim=768, norm_layer=None, flatten=True):
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
@@ -37,6 +38,11 @@ class PatchEmbed(nn.Module):
         self.flatten = flatten
 
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+
+        # Boxes embedding
+        self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
+                                    in_chans=embed_dim, embed_dim=embed_dim)
+
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
@@ -189,16 +195,24 @@ class CrossBlock(nn.Module):
 class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     """ Vision Transformer with support for global average pooling
     """
-    def __init__(self, global_pool=False, **kwargs):
+    def __init__(self, global_pool=False, box_patch_size=8, **kwargs):
         init_values = kwargs.pop('init_values')
         super(VisionTransformer, self).__init__(**kwargs)
+
+        self.patch_size = kwargs['patch_size']
+        # Boxes embedding
+        self.box_embed = PatchEmbed(img_size=box_patch_size,
+                                    patch_size=box_patch_size,
+                                    in_chans=kwargs['embed_dim'],
+                                    embed_dim=kwargs['embed_dim'])
+
 
         drop_path_rate = kwargs['drop_path_rate']
         depth = kwargs['depth']
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
         self.blocks = nn.Sequential(*[
             Block(
-                dim=kwargs['embed_dim'], num_heads=kwargs['num_heads'], mlp_ratio=kwargs['mlp_ratio'], qkv_bias=kwargs['qkv_bias'], 
+                dim=kwargs['embed_dim'], num_heads=kwargs['num_heads'], mlp_ratio=kwargs['mlp_ratio'], qkv_bias=kwargs['qkv_bias'],
                 init_values=init_values, norm_layer=kwargs['norm_layer'], drop_path=dpr[i])
             for i in range(kwargs['depth'])])
 
@@ -235,7 +249,51 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         outcome = x
 
         return outcome
-    
+
+    def extract_box_feature(self, x, boxes_info, scale_factor, mask):
+        h, w = self.patch_embed.grid_size
+        num_box = boxes_info.shape[1]
+        batch_size = x.shape[0]
+        x = x.view(batch_size, h, w, self.embed_dim).permute(0, 3, 1, 2)
+
+        batch_index = torch.arange(0.0, batch_size).repeat(num_box).view(num_box, -1) \
+            .transpose(0, 1).flatten(0, 1).to(x.device)
+        roi_box_info = boxes_info.view(-1, 4).to(x.device)
+
+        roi_info = torch.stack((batch_index, roi_box_info[:, 0],
+                                roi_box_info[:, 1], roi_box_info[:, 2],
+                                roi_box_info[:, 3]), dim=1).to(x.device)
+
+        aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
+                                output_size=8)
+
+        aligned_out = aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[mask]
+        aligned_out.view(-1, self.embed_dim, 8, 8)
+
+        return aligned_out
+
+    def forward_boxes(self, x, boxes):
+        B = x.shape[0]
+        x = self.patch_embed(x)
+
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
+        x = torch.cat((cls_tokens, x), dim=1)
+        x = x + self.pos_embed
+        x = self.pos_drop(x)
+
+        for blk in self.blocks:
+            x = blk(x)
+
+        x = x[:, 1:, :]
+
+        with torch.no_grad():
+            mask = torch.all(boxes != -1, dim=-1)
+            boxes_features = self.extract_box_feature(x=x, boxes_info=boxes, scale_factor=1. / self.patch_size,
+                                                      mask=mask)
+            boxes_features = self.box_embed(boxes_features).squeeze()
+
+        return boxes_features
+
     def forward_head(self, x, pre_logits: bool = False):
         if self.global_pool:
             x = x[:, 1:, :].mean(dim=1)
@@ -247,7 +305,7 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
 
 def vit_base_patch16(**kwargs):
     model = VisionTransformer(
-        patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
+        img_size=352, patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(LayerNorm, eps=1e-6), **kwargs)
     return model
 
