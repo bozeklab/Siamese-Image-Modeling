@@ -39,10 +39,6 @@ class PatchEmbed(nn.Module):
 
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
 
-        # Boxes embedding
-        self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
-                                    in_chans=embed_dim, embed_dim=embed_dim)
-
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):

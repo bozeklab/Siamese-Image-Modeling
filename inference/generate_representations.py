@@ -1,14 +1,16 @@
-import argparse
 import os
 from dataclasses import dataclass
 
 import torch
-from torch.utils.data import SequentialSampler
+import numpy as np
 
 from main_pretrain import DataPreprocessingForSIM
 from models_vit import vit_base_patch16
+from PIL import Image
+import torchvision.transforms.functional as F
 from util.img_with_picke_dataset import ImgWithPickledBoxesAndClassesDataset
 
+import pickle
 
 @dataclass
 class Config:
@@ -20,7 +22,7 @@ class Config:
     drop_path: float
 
 
-args = Config(data_path='/data/pwojcik/he/positive',
+args = Config(data_path='/Users/piotrwojcik/data/he/positive',
               input_size=352,
               num_boxes=250,
               batch_size=1,
@@ -40,9 +42,6 @@ def prepare_model(chkpt_dir, **kwargs):
 
 
 if __name__ == '__main__':
-    #args = get_args_parser()
-    #args = args.parse_args()
-
     transform_inference = DataPreprocessingForSIM(args)
     print(f'Data pre-processing:\n{transform_inference}')
 
@@ -50,16 +49,51 @@ if __name__ == '__main__':
 
     print(f'Build dataset: inference images = {len(dataset_inference)}')
 
-    model_sim = prepare_model('/data/pwojcik/SimMIM/output_dir/checkpoint-latest.pth',
+    model_sim = prepare_model('checkpoints/checkpoint-latest.pth',
                               init_values=args.init_values,
                               global_pool=True,
                               drop_path_rate=args.drop_path,
                               box_patch_size=8)
 
+    reps = []
+    cls = []
+    crops = []
+
     for idx, sample in enumerate(dataset_inference):
-        x = sample['x']
+        image = sample['x']
+
         boxes = sample['boxes']
-        x = x.unsqueeze(dim=0)
+        classes = sample['classes']
+        x = image.unsqueeze(dim=0)
         boxes = boxes.unsqueeze(dim=0)
+        classes = classes.unsqueeze(dim=0)
         box_features = model_sim.forward_boxes(x=x, boxes=boxes)
-        print(box_features.shape)
+        mask = classes != -1
+        classes = classes[mask]
+        reps.append(box_features)
+        cls.append(classes)
+
+        for j in range(box_features.shape[0]):
+            box = boxes[0, j].numpy().tolist()
+            crop = image[:, int(box[1]):int(box[3]), int(box[0]):int(box[2])]
+            crop = F.resize(crop, size=(32, 32))
+            crop = (crop * 255.0).to(torch.uint8)
+            crops.append(crop.permute(1, 2, 0).numpy())
+
+    X = torch.cat(reps, dim=0).numpy()
+    y = torch.cat(cls, dim=0).numpy().astype(str)
+    print('Finished inference...')
+
+    output_file = "representations/data.pkl"
+
+    data = {
+     'X': X,
+     'y': y,
+     'crops': crops
+    }
+
+    with open(output_file, 'wb') as f:
+        pickle.dump(data, f)
+
+    print('Data saved to', output_file)
+
