@@ -20,7 +20,7 @@ class Config:
     drop_path: float
 
 
-args = Config(data_path='/Users/piotrwojcik/data/he/positive',
+args = Config(data_path='/data/pwojcik/he/positive',
               input_size=352,
               num_boxes=250,
               batch_size=1,
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     print(f'Build dataset: inference images = {len(dataset_inference)}')
 
-    model_sim = prepare_model('checkpoints/checkpoint-latest.pth',
+    model_sim = prepare_model('/data/pwojcik/SimMIM/output_dir/checkpoint-latest.pth',
                               init_values=args.init_values,
                               global_pool=True,
                               drop_path_rate=args.drop_path,
