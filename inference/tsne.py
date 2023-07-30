@@ -27,7 +27,6 @@ images, embeddings, labels = data['crops'], data['X'], data['y']
 from sklearn.manifold import TSNE
 tsne = TSNE(random_state=123, n_components=3, verbose=1, learning_rate=200, perplexity=50, n_iter=2000).fit_transform(embeddings)
 
-# Reverse map for the labels
 dlbcl_cells = {
     0: 'plasma_cell', 1: 'eosinophil', 2: 'macrophage', 3: 'vessel',
     4: 'apoptotic_bodies', 5: 'epithelial_cell', 6: 'normal_small_lymphocyte',
@@ -35,13 +34,20 @@ dlbcl_cells = {
     11: 'erythrocyte', 12: 'mitose', 13: 'positive', 14: 'tumor'
 }
 
+colors_per_class = ['red', 'green', 'blue', 'purple', 'pink', 'cyan',
+                   'orange', 'magenta', 'lightgreen', 'yellow', 'lightblue',
+                   'lightcoral', 'lightseagreen', 'darkred', 'darkorange']
+
+
 # Set up the Dash app
 app = Dash(__name__)
+
+colors = [colors_per_class[int(l)] for l in labels]
 
 # Create the 3D scatter plot
 fig = go.Figure(data=[go.Scatter3d(
     x=tsne[:, 0], y=tsne[:, 1], z=tsne[:, 2],
-    mode='markers', marker=dict(size=2, color=labels)
+    mode='markers', marker=dict(size=2, color=colors)
 )])
 
 # Set up the layout
