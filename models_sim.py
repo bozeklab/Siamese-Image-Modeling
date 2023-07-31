@@ -506,7 +506,7 @@ class SiameseIMViT(nn.Module):
         with torch.cuda.amp.autocast(False):
             loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
             loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
-            loss = loss_grid + loss_boxes
+            loss = 0.3 * loss_grid + loss_boxes
 
         outputs['loss_sim'] = loss.item()
         outputs['loss_sim_grid'] = loss_grid.item()
