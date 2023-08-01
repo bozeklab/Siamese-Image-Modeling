@@ -184,7 +184,7 @@ class Config:
 
 
 args = Config(data_path='/Users/piotrwojcik/images_he_seg1000/positive/', input_size=352, with_blockwise_mask=True,
-              blockwise_num_masking_patches=220, crop_min=0.2, num_boxes=50, batch_size=2)
+              blockwise_num_masking_patches=314, crop_min=0.2, num_boxes=50, batch_size=2)
 
 if __name__ == '__main__':
     transform_train = DataAugmentationForSIM(args)
