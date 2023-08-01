@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import torch
 import numpy as np
+from tqdm import tqdm
 
 from main_pretrain import DataPreprocessingForSIM
 from models_vit import vit_base_patch16
@@ -24,7 +25,7 @@ class Config:
 
 args = Config(data_path='/Users/piotrwojcik/data/he/positive',
               input_size=352,
-              num_boxes=250,
+              num_boxes=350,
               batch_size=1,
               init_values=1.0,
               drop_path=0.1)
@@ -55,11 +56,13 @@ if __name__ == '__main__':
                               drop_path_rate=args.drop_path,
                               box_patch_size=8)
 
+    model_sim.eval()
+
     reps = []
     cls = []
     crops = []
 
-    for idx, sample in enumerate(dataset_inference):
+    for idx, sample in tqdm(enumerate(dataset_inference), total=len(dataset_inference)):
         image = sample['x']
 
         boxes = sample['boxes']
@@ -95,5 +98,5 @@ if __name__ == '__main__':
     with open(output_file, 'wb') as f:
         pickle.dump(data, f)
 
-    print('Data saved to', output_file)
+    print('Data saved to: ', output_file)
 

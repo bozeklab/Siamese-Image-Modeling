@@ -36,7 +36,7 @@ dlbcl_cells = {
 
 colors_per_class = ['red', 'green', 'blue', 'purple', 'pink', 'cyan',
                    'orange', 'magenta', 'lightgreen', 'yellow', 'lightblue',
-                   'lightcoral', 'lightseagreen', 'darkred', 'darkorange']
+                   'sienna', 'lightseagreen', 'darkred', 'darkorange']
 
 colors = [colors_per_class[int(l)] for l in labels]
 labels = [dlbcl_cells[int(label)] for label in labels]
