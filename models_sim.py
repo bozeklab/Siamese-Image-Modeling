@@ -146,7 +146,7 @@ class SiameseIMViT(nn.Module):
             self.patch_embed.proj.weight.requires_grad = False
             self.patch_embed.proj.bias.requires_grad = False
 
-    def build_momentum_target(self, img_size, box_patch_size, patch_size, in_chans, embed_dim, num_heads,
+    def build_momentum_target(self, img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                 mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
         # --------------------------------------------------------------------------
         # momentum encoder specifics
