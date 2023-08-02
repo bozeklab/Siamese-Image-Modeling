@@ -496,11 +496,12 @@ class SiameseIMViT(nn.Module):
 
             target = target_x2[:, 1:, :]
 
-            mask = torch.all(boxes1 != -1, dim=-1)
+            mask1 = torch.all(boxes1 != -1, dim=-1)
+            mask2 = torch.all(boxes2 != -1, dim=-1)
             pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size,
-                                                           mask=mask)
+                                                           mask=mask1)
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
-                                                             mask=mask)
+                                                             mask=mask2)
             target_boxes_features = self.mm_box_embed(target_boxes_features).squeeze()
 
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
