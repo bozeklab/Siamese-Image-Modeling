@@ -168,8 +168,8 @@ class SiameseIMViT(nn.Module):
         for p in self.mm_patch_embed.parameters():
             p.requires_grad = False
 
-        self.mm_patch_embed.load_state_dict(self.patch_embed.state_dict())
-        for p in self.mm_patch_embed.parameters():
+        self.mm_box_embed.load_state_dict(self.box_embed.state_dict())
+        for p in self.mm_box_embed.parameters():
             p.requires_grad = False
 
         self.mm_cls_token.data.copy_(self.cls_token.data)
