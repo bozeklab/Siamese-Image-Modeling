@@ -152,10 +152,6 @@ class SiameseIMViT(nn.Module):
         # momentum encoder specifics
         self.mm_patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
 
-        # Boxes embedding
-        self.mm_box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
-                                       in_chans=embed_dim, embed_dim=embed_dim)
-
         if hasattr(self, 'cls_token'):
             self.mm_cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
@@ -166,10 +162,6 @@ class SiameseIMViT(nn.Module):
         # load weight
         self.mm_patch_embed.load_state_dict(self.patch_embed.state_dict())
         for p in self.mm_patch_embed.parameters():
-            p.requires_grad = False
-
-        self.mm_box_embed.load_state_dict(self.box_embed.state_dict())
-        for p in self.mm_box_embed.parameters():
             p.requires_grad = False
 
         self.mm_cls_token.data.copy_(self.cls_token.data)
@@ -323,8 +315,6 @@ class SiameseIMViT(nn.Module):
     @torch.cuda.amp.autocast(enabled=False)
     def mm_update(self, mm):
         for param_q, param_k in zip(self.patch_embed.parameters(), self.mm_patch_embed.parameters()):
-            param_k.data = param_k.data * mm + param_q.data * (1. - mm)
-        for param_q, param_k in zip(self.box_embed.parameters(), self.mm_box_embed.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         for param_q, param_k in zip(self.blocks.parameters(), self.mm_blocks.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
@@ -502,7 +492,7 @@ class SiameseIMViT(nn.Module):
                                                            mask=mask1)
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
                                                              mask=mask2)
-            target_boxes_features = self.mm_box_embed(target_boxes_features).squeeze()
+            target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
 
