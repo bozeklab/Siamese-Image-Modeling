@@ -497,7 +497,7 @@ class SiameseIMViT(nn.Module):
             target = target_x2[:, 1:, :]
 
         with torch.no_grad():
-            mask = torch.all(boxes != -1, dim=-1)
+            mask = torch.all(boxes1 != -1, dim=-1)
             pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size,
                                                            mask=mask)
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes1, scale_factor=1. / self.patch_size,
