@@ -138,7 +138,7 @@ class SiameseIMViT(nn.Module):
 
         # build momentum branch
         if self.args.loss_type in ['sim',]:
-            self.build_momentum_target(img_size, patch_size, in_chans, embed_dim, num_heads,
+            self.build_momentum_target(img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                         mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads)
 
         # stop grad for patch embedding
@@ -146,11 +146,15 @@ class SiameseIMViT(nn.Module):
             self.patch_embed.proj.weight.requires_grad = False
             self.patch_embed.proj.bias.requires_grad = False
 
-    def build_momentum_target(self, img_size, patch_size, in_chans, embed_dim, num_heads,
+    def build_momentum_target(self, img_size, box_patch_size, patch_size, in_chans, embed_dim, num_heads,
                                 mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
         # --------------------------------------------------------------------------
         # momentum encoder specifics
         self.mm_patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+
+        # Boxes embedding
+        self.mm_box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
+                                       in_chans=embed_dim, embed_dim=embed_dim)
 
         if hasattr(self, 'cls_token'):
             self.mm_cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
@@ -160,6 +164,10 @@ class SiameseIMViT(nn.Module):
             for i in range(depth)])
         
         # load weight
+        self.mm_patch_embed.load_state_dict(self.patch_embed.state_dict())
+        for p in self.mm_patch_embed.parameters():
+            p.requires_grad = False
+
         self.mm_patch_embed.load_state_dict(self.patch_embed.state_dict())
         for p in self.mm_patch_embed.parameters():
             p.requires_grad = False
@@ -316,6 +324,8 @@ class SiameseIMViT(nn.Module):
     def mm_update(self, mm):
         for param_q, param_k in zip(self.patch_embed.parameters(), self.mm_patch_embed.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
+        for param_q, param_k in zip(self.box_embed.parameters(), self.mm_box_embed.parameters()):
+            param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         for param_q, param_k in zip(self.blocks.parameters(), self.mm_blocks.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         if hasattr(self, 'mm_cls_token'):
@@ -415,7 +425,7 @@ class SiameseIMViT(nn.Module):
         else:
             return self.forward_mae(*args, **kwargs)
 
-    def forward_sim(self, x1, x2, boxes1, boxes2, rel_pos_21, mm, update_mm, mask=None):
+    def forward_sim(self, x1, x2, boxes1, rel_pos_21, mm, update_mm, mask=None):
         # forward online encoder
         if self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
@@ -487,14 +497,12 @@ class SiameseIMViT(nn.Module):
             target = target_x2[:, 1:, :]
 
         with torch.no_grad():
-            mask1 = torch.all(boxes1 != -1, dim=-1)
-            mask2 = torch.all(boxes2 != -1, dim=-1)
-            mask = torch.logical_and(mask1, mask2)
+            mask = torch.all(boxes != -1, dim=-1)
             pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes1, scale_factor=1. / self.patch_size,
                                                            mask=mask)
-            target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes2, scale_factor=1. / self.patch_size,
+            target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes1, scale_factor=1. / self.patch_size,
                                                              mask=mask)
-            target_boxes_features = self.box_embed(target_boxes_features).squeeze()
+            target_boxes_features = self.mm_box_embed(target_boxes_features).squeeze()
 
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
 

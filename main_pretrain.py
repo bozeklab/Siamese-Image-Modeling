@@ -274,7 +274,7 @@ class DataAugmentationForSIM(object):
             'flip_delta_j': (W-j1-j2)/w1,
             'boxes0': boxes0,
             'boxes1': boxes1,
-            'boxes2': boxes2,
+            #'boxes2': boxes2,
         }
 
     def __repr__(self):

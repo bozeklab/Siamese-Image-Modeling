@@ -34,8 +34,8 @@ dlbcl_cells = {
     11: 'erythrocyte', 12: 'mitose', 13: 'positive', 14: 'tumor'
 }
 
-colors_per_class = ['red', 'green', 'blue', 'purple', 'pink', 'cyan',
-                   'orange', 'magenta', 'lightgreen', 'yellow', 'lightblue',
+colors_per_class = ['red', 'orange', 'blue', 'purple', 'pink', 'cyan',
+                   'green', 'magenta', 'lightgreen', 'yellow', 'lightblue',
                    'sienna', 'lightseagreen', 'darkred', 'darkorange']
 
 colors = [colors_per_class[int(l)] for l in labels]

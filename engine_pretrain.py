@@ -71,7 +71,7 @@ def train_one_epoch(model: torch.nn.Module,
             relative_flip = samples['relative_flip']
             flip_delta_j = samples['flip_delta_j']
             boxes1 = samples['boxes1']
-            boxes2 = samples['boxes2']
+            #boxes2 = samples['boxes2']
 
             x1 = x1.to(device, non_blocking=True)
             x2 = x2.to(device, non_blocking=True)
