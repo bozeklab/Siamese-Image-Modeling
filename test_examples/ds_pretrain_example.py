@@ -219,7 +219,7 @@ if __name__ == '__main__':
         w1, w2 = samples['w1'], samples['w2']
         boxes0 = samples['boxes0']
         boxes1 = samples['boxes1']
-        #boxes2 = samples['boxes2']
+        boxes2 = samples['boxes2']
 
         crops = torch.concat([i1.unsqueeze(dim=1),
                               j1.unsqueeze(dim=1),
