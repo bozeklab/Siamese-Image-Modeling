@@ -251,7 +251,7 @@ if __name__ == '__main__':
         #img0 = draw_crop_boxes(img0, crops)
         img0 = draw_bboxes(img0, boxes=boxes0)
         img1 = draw_bboxes(img1, boxes=boxes1)
-        #img2 = draw_bboxes(img2, boxes=boxes2)
+        img2 = draw_bboxes(img2, boxes=boxes2)
         img1 = [gray_out_mask(img, mask, patch_size, alpha=0.5) for img, mask in zip(img1, mask)]
         imgs = interleave_lists(img0, img1, img2)
         images.extend(imgs)
