@@ -41,9 +41,15 @@ if __name__ == "__main__":
     img = imageio.v3.imread(img_pth)
     img = resize(img, (args.size, args.size))
     img = (img * 255.0).astype(np.uint8)
-    segmap = np.load(segmap_pth, allow_pickle=True).item()['type_map']
-    segmap = SegmentationMapsOnImage(segmap, shape=img.shape)
-    segmap = segmap.resize(sizes=(args.size, args.size), interpolation="nearest")
+    segmap = np.load(segmap_pth, allow_pickle=True).item()
+    tmap = segmap['type_map']
+    imap = segmap['inst_map']
+
+    tmap = SegmentationMapsOnImage(tmap, shape=img.shape)
+    imap = SegmentationMapsOnImage(imap, shape=img.shape)
+
+    tmap = tmap.resize(sizes=(args.size, args.size), interpolation="nearest")
+    imap = imap.resize(sizes=(args.size, args.size), interpolation="nearest")
 
     seq = iaa.Sequential([
         iaa.Fliplr(0.5),
@@ -53,9 +59,10 @@ if __name__ == "__main__":
     images_aug = []
     segmaps_aug = []
     for _ in range(5):
-        images_aug_i, segmaps_aug_i = seq(image=img, segmentation_maps=segmap)
+        images_aug_i, segmaps_aug_i = seq(image=img, segmentation_maps=[tmap, imap])
+
         images_aug.append(images_aug_i)
-        segmaps_aug.append(segmaps_aug_i)
+        segmaps_aug.append(segmaps_aug_i[0])
 
     # We want to generate an image containing the original input image and
     # segmentation maps before/after augmentation. (Both multiple times for
@@ -76,7 +83,7 @@ if __name__ == "__main__":
     cells = []
     for image_aug, segmap_aug in zip(images_aug, segmaps_aug):
         cells.append(img)  # column 1
-        cells.append(segmap.draw_on_image(img)[0])  # column 2
+        cells.append(tmap.draw_on_image(img)[0])  # column 2
         cells.append(image_aug)  # column 3
         cells.append(segmap_aug.draw_on_image(image_aug)[0])  # column 4
         cells.append(segmap_aug.draw(size=image_aug.shape[:2])[0])  # column 5
