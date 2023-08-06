@@ -24,8 +24,11 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
+from imgaug import SegmentationMapsOnImage
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.transforms as transforms
+import imgaug.augmenters as iaa
+from skimage.transform import resize
 import torchvision.datasets as datasets
 
 import timm
@@ -209,6 +212,38 @@ class DataPreprocessingForSIM(object):
     def __repr__(self):
         repr = "(DataPreprocessing,\n"
         repr += "  transform = %s,\n" % str(self.resize) + str(self.to_tensor)
+        repr += ")"
+        return repr
+
+
+class DataAugmentationForImagesWithMasks(object):
+    def __init__(self, args):
+        self.args = args
+        self.to_tensor = transforms.ToTensor()
+        self.seq = iaa.Sequential([iaa.Fliplr(0.5)], random_order=True)
+
+    def __call__(self, image, type_map, inst_map):
+        image = resize(image, (self.args.input_size, self.args.input_size))
+        image = (image * 255.0).astype(np.uint8)
+
+        tmap = SegmentationMapsOnImage(type_map, shape=image.shape)
+        tmap = tmap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
+
+        imap = SegmentationMapsOnImage(inst_map, shape=image.shape)
+        imap = imap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
+
+        image, segmaps_aug_i = self.seq(image=image, segmentation_maps=[tmap, imap])
+
+        return {
+            'x': image,
+            'type_map': tmap,
+            'inst_map': imap
+        }
+
+
+    def __repr__(self):
+        repr = "(DataPreprocessing,\n"
+        repr += "  transform = %s,\n" % str(self.seq)
         repr += ")"
         return repr
 
