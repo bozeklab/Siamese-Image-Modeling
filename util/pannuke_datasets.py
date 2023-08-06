@@ -38,7 +38,7 @@ def remap_label(pred, by_size=False):
     return new_pred
 
 
-def process_fold(fold, input_path, output_path) -> None:
+def process_fold(fold, input_path, output_path):
     fold_path = Path(input_path) / f"fold{fold}"
     output_fold_path = Path(output_path) / f"fold{fold}"
     output_fold_path.mkdir(exist_ok=True, parents=True)
