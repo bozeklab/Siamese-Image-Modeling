@@ -9,7 +9,7 @@ from main_pretrain import DataPreprocessingForSIM
 from models_vit import vit_base_patch16
 from PIL import Image
 import torchvision.transforms.functional as F
-from util.img_with_picke_dataset import ImgWithPickledBoxesAndClassesDataset
+from util.img_with_pickle_dataset import ImgWithPickledBoxesAndClassesDataset
 
 import pickle
 

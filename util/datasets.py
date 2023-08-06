@@ -17,7 +17,7 @@ from torchvision import datasets, transforms
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
-from util.img_with_picke_dataset import ImgWithPickledBoxesDataset
+from util.img_with_pickle_dataset import ImgWithPickledBoxesDataset
 
 
 def build_transform(is_train, args):
