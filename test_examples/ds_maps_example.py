@@ -9,7 +9,7 @@ from torchvision import transforms
 
 from main_pretrain import DataPreprocessingForSIM, DataAugmentationForImagesWithMaps
 from test_examples.ds_pretrain_example import tensor_batch_to_list, draw_bboxes, create_image_grid
-from util.img_with_mask_dataset import ImagesWithSegmentationMasks
+from util.img_with_mask_dataset import ImagesWithSegmentationMaps
 
 
 @dataclass
@@ -27,8 +27,8 @@ if __name__ == '__main__':
 
     print(f'Segmentation data transform:\n{transform_mask}')
 
-    mask_train = ImagesWithSegmentationMasks(root=os.path.join(args.data_path),
-                                             transform=transform_mask)
+    mask_train = ImagesWithSegmentationMaps(root=os.path.join(args.data_path),
+                                            transform=transform_mask)
 
     print(f'Build dataset: images with mask = {len(mask_train)}')
 

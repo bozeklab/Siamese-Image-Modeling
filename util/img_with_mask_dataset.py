@@ -10,9 +10,9 @@ import numpy as np
 from util.cells import get_bounding_box
 
 
-class ImagesWithSegmentationMasks(datasets.VisionDataset):
+class ImagesWithSegmentationMaps(datasets.VisionDataset):
     def __init__(self, root, transform):
-        super(ImagesWithSegmentationMasks, self).__init__(root, transform=transform)
+        super(ImagesWithSegmentationMaps, self).__init__(root, transform=transform)
 
         self.root_imgs = os.path.join(root, 'images')
         self.root_masks = os.path.join(root, 'labels')
