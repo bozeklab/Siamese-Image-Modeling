@@ -39,7 +39,7 @@ from timm.optim import create_optimizer
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.augmentation import GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlip, Solarize, \
-    Resize
+    Resize, RandomHorizontalFlipForMaps
 from util.datasets import ImagenetWithMask
 import models_sim
 from engine_pretrain import train_one_epoch
@@ -216,11 +216,11 @@ class DataPreprocessingForSIM(object):
         return repr
 
 
-class DataAugmentationForImagesWithMasks(object):
+class DataAugmentationForImagesWithMaps(object):
     def __init__(self, args):
         self.args = args
         self.to_tensor = transforms.ToTensor()
-        self.seq = iaa.Sequential([iaa.Fliplr(0.5)], random_order=True)
+        self.hflip = RandomHorizontalFlipForMaps()
 
     def __call__(self, image, type_map, inst_map):
         image = resize(image, (self.args.input_size, self.args.input_size))
@@ -232,18 +232,20 @@ class DataAugmentationForImagesWithMasks(object):
         imap = SegmentationMapsOnImage(inst_map, shape=image.shape)
         imap = imap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
 
-        image, segmaps_aug_i = self.seq(image=image, segmentation_maps=[tmap, imap])
+        orig_img = image.copy()
+
+        img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
 
         return {
-            'x': image,
-            'type_map': tmap,
-            'inst_map': imap
+            'x0': orig_img,
+            'x': img_aug,
+            'type_map': tmap_aug,
+            'inst_map': imap_aug
         }
-
 
     def __repr__(self):
         repr = "(DataPreprocessing,\n"
-        repr += "  transform = %s,\n" % str(self.seq)
+        repr += "  transform = %s,\n" % str(self.hflip)
         repr += ")"
         return repr
 

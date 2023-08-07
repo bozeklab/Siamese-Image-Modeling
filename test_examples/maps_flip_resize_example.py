@@ -39,8 +39,8 @@ if __name__ == "__main__":
                                        os.path.join(args.input_path, 'labels'))
 
     img = imageio.v3.imread(img_pth)
-    img = resize(img, (args.size, args.size))
-    img = (img * 255.0).astype(np.uint8)
+    #img = resize(img, (args.size, args.size))
+    #img = (img * 255.0).astype(np.uint8)
     segmap = np.load(segmap_pth, allow_pickle=True).item()
     tmap = segmap['type_map']
     imap = segmap['inst_map']
@@ -48,8 +48,8 @@ if __name__ == "__main__":
     tmap = SegmentationMapsOnImage(tmap, shape=img.shape)
     imap = SegmentationMapsOnImage(imap, shape=img.shape)
 
-    tmap = tmap.resize(sizes=(args.size, args.size), interpolation="nearest")
-    imap = imap.resize(sizes=(args.size, args.size), interpolation="nearest")
+    #tmap = tmap.resize(sizes=(args.size, args.size), interpolation="nearest")
+    #imap = imap.resize(sizes=(args.size, args.size), interpolation="nearest")
 
     seq = iaa.Sequential([
         iaa.Fliplr(0.5),
@@ -58,11 +58,11 @@ if __name__ == "__main__":
     # Augment images and segmaps.
     images_aug = []
     segmaps_aug = []
-    for _ in range(5):
+    for _ in range(3):
         images_aug_i, segmaps_aug_i = seq(image=img, segmentation_maps=[tmap, imap])
 
         images_aug.append(images_aug_i)
-        segmaps_aug.append(segmaps_aug_i[0])
+        segmaps_aug.append(segmaps_aug_i[1])
 
     # We want to generate an image containing the original input image and
     # segmentation maps before/after augmentation. (Both multiple times for
@@ -83,11 +83,11 @@ if __name__ == "__main__":
     cells = []
     for image_aug, segmap_aug in zip(images_aug, segmaps_aug):
         cells.append(img)  # column 1
-        cells.append(tmap.draw_on_image(img)[0])  # column 2
+        cells.append(imap.draw_on_image(img)[0])  # column 2
         cells.append(image_aug)  # column 3
         cells.append(segmap_aug.draw_on_image(image_aug)[0])  # column 4
-        cells.append(segmap_aug.draw(size=image_aug.shape[:2])[0])  # column 5
+        #cells.append(segmap_aug.draw(size=image_aug.shape[:2])[0])  # column 5
 
     # Convert cells to a grid image and save.
-    grid_image = ia.draw_grid(cells, cols=5)
+    grid_image = ia.draw_grid(cells, cols=4)
     imageio.imwrite("example_segmaps_fr.jpg", grid_image)

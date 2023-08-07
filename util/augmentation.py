@@ -4,6 +4,7 @@ import random
 import PIL
 from PIL import ImageFilter, ImageOps
 import torch
+import imgaug.augmenters as iaa
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
 
@@ -206,6 +207,20 @@ class Resize(transforms.Resize):
         boxes = self.rescale_boxes(boxes, h, w)
 
         return img, boxes
+
+
+class RandomHorizontalFlipForMaps(transforms.RandomHorizontalFlip):
+    """Wrapper around imgaug flip for multiple masks"""
+
+    aug = iaa.Fliplr(1.0)
+
+    def forward(self, img, type_map, inst_map):
+        if torch.rand(1) < self.p:
+
+            aug_img, type_map = self.aug(image=img, segmentation_maps=type_map)
+            _, inst_map = self.aug(image=img, segmentation_maps=inst_map)
+            return aug_img, type_map, inst_map
+        return img, type_map, inst_map
 
 
 class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
