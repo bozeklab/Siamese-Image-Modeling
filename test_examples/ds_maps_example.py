@@ -2,8 +2,11 @@ import os
 from dataclasses import dataclass
 
 import imageio
+import random
 import imgaug as ia
 import torch
+import matplotlib.pyplot as plt
+from imgaug import SegmentationMapsOnImage
 from torch.utils.data import RandomSampler
 from torchvision import transforms
 
@@ -34,21 +37,35 @@ if __name__ == '__main__':
 
     cells = []
 
-    idxs = [9, 10, 12,  34]
+    idxs = []
+    for _ in range(4):
+        num = random.randint(1, 40)  # Generate a random number between 1 and 99 (both inclusive)
+        idxs.append(num)
 
     for idx, data in enumerate(mask_train):
         x0 = data['x0']
         x = data['x']
         imap = data['inst_map']
         tmap = data['type_map']
+        hvmap = data['hv_map']
 
         if idx == 40:
             break
         if not idx in idxs:
             continue
 
+        x0 = torch.einsum('chw -> hwc', x0)
+        x0 = (x0 * 255.0).to(torch.uint8).numpy()
+
+        x = torch.einsum('chw -> hwc', x)
+        x = (x * 255.0).to(torch.uint8).numpy()
+
         cells.append(x0)  # column 1
         cells.append(x)  # column 2
+
+        imap = SegmentationMapsOnImage(imap.numpy(), shape=x.shape)
+        tmap = SegmentationMapsOnImage(tmap.numpy(), shape=x.shape)
+
         cells.append(imap.draw_on_image(x)[0])  # column 3
         cells.append(tmap.draw_on_image(x)[0])  # column 4
 

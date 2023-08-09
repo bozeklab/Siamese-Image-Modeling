@@ -32,6 +32,9 @@ from skimage.transform import resize
 import torchvision.datasets as datasets
 
 import timm
+
+from util.img_with_mask_dataset import ImagesWithSegmentationMaps
+
 assert timm.__version__ == "0.6.12"  # version check
 from timm.optim.optim_factory import param_groups_weight_decay
 from timm.optim import create_optimizer
@@ -235,12 +238,14 @@ class DataAugmentationForImagesWithMaps(object):
         orig_img = image.copy()
 
         img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
+        im = imap_aug.get_arr()
 
         return {
-            'x0': orig_img,
-            'x': img_aug,
-            'type_map': tmap_aug,
-            'inst_map': imap_aug
+            'x0': self.to_tensor(orig_img),
+            'x': self.to_tensor(img_aug),
+            'type_map': torch.tensor(tmap_aug.get_arr()),
+            'inst_map': torch.tensor(im),
+            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im))
         }
 
     def __repr__(self):

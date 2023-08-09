@@ -7,7 +7,7 @@ import pickle
 from scipy.ndimage import measurements
 import numpy as np
 
-from util.cells import get_bounding_box
+from util.tools import get_bounding_box
 
 
 class ImagesWithSegmentationMaps(datasets.VisionDataset):

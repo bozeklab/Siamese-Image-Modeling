@@ -149,7 +149,6 @@ class Block(nn.Module):
 
 
 class CrossBlock(nn.Module):
-
     def __init__(
             self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0., init_values=None,
             drop_path=0., act_layer=nn.GELU, norm_layer=LayerNorm):
@@ -178,7 +177,6 @@ class CrossBlock(nn.Module):
         self.mlp2 = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
         self.ls4 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
         self.drop_path4 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-
 
     def forward(self, query, key):
         query = query + self.drop_path1(self.ls1(self.cross_attn(self.norm1(query), self.norm2(key))))
