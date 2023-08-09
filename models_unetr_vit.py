@@ -195,11 +195,11 @@ class Block(nn.Module):
 
 
 class CellViT(nn.Module):
-    """CellViT Modell for cell segmentation. U-Net like network with vision transformer as backbone encoder
+    """CellViT model for cell segmentation. U-Net like network with vision transformer as backbone encoder
 
     Skip connections are shared between branches
 
-    The modell is having multiple branches:
+    The model is having multiple branches:
         * tissue_types: Tissue prediction based on global class token
         * nuclei_binary_map: Binary nuclei prediction
         * hv_map: HV-prediction to separate isolated instances
@@ -224,29 +224,20 @@ class CellViT(nn.Module):
     def __init__(
         self,
         num_nuclei_classes: int,
-        num_tissue_classes: int,
         embed_dim: int,
-        input_channels: int,
-        depth: int,
-        num_heads: int,
         extract_layers: List,
-        mlp_ratio: float = 4,
-        qkv_bias: bool = True,
-        drop_rate: float = 0,
-        attn_drop_rate: float = 0,
-        drop_path_rate: float = 0,
-    ):
+        drop_rate: float,
+        encoder):
         # For simplicity, we will assume that extract layers must have a length of 4
         super().__init__()
         assert len(extract_layers) == 4, "Please provide 4 layers for skip connections"
 
         self.patch_size = 16
-        self.num_tissue_classes = num_tissue_classes
         self.num_nuclei_classes = num_nuclei_classes
         self.embed_dim = embed_dim
         self.drop_rate = drop_rate
 
-        self.encoder = unetr_vit_base_patch16(num_classes=self.num_tissue_classes)
+        self.encoder = encoder
 
         if self.embed_dim < 512:
             self.skip_dim_11 = 256
@@ -577,6 +568,8 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     """
     def __init__(self, **kwargs):
         init_values = kwargs.pop('init_values')
+
+        self.extract_layers = kwargs.pop('extract_layers')
         super(VisionTransformer, self).__init__(**kwargs)
 
         self.patch_size = kwargs['patch_size']
@@ -584,7 +577,6 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         drop_path_rate = kwargs['drop_path_rate']
         depth = kwargs['depth']
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
-        self.extract_layers = kwargs['extract_layers']
         self.blocks = nn.Sequential(*[
             Block(
                 dim=kwargs['embed_dim'], num_heads=kwargs['num_heads'], mlp_ratio=kwargs['mlp_ratio'],
@@ -601,7 +593,7 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         num_patches = self.patch_embed.num_patches
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim), requires_grad=False)
 
-    def forward_features(self, x):
+    def forward(self, x):
         extract_layers = []
 
         B = x.shape[0]
@@ -626,13 +618,15 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
 
         return outcome, outcome[:, 0], extract_layers
 
-    def forward_head(self, x, pre_logits: bool = False):
-        if self.global_pool:
-            x = x[:, 1:, :].mean(dim=1)
-        else:
-            x[:, 0]
-        x = self.fc_norm(x)
-        return x if pre_logits else self.head(x)
+
+def cell_vit_base_patch16(num_nuclei_classes, embed_dim, extract_layers, drop_rate, encoder):
+
+    model = CellViT(num_nuclei_classes=num_nuclei_classes,
+                    embed_dim=embed_dim,
+                    extract_layers=extract_layers,
+                    encoder=encoder,
+                    drop_rate=drop_rate)
+    return model
 
 
 def unetr_vit_base_patch16(**kwargs):
