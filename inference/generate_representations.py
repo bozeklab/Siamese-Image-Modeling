@@ -28,7 +28,7 @@ args = Config(data_path='/Users/piotrwojcik/data/he/positive',
               num_boxes=350,
               batch_size=1,
               init_values=1.0,
-              drop_path=0.1)
+              drop_path=0.0)
 
 
 def prepare_model(chkpt_dir, **kwargs):

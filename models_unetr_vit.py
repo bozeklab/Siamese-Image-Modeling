@@ -244,32 +244,9 @@ class CellViT(nn.Module):
         self.num_tissue_classes = num_tissue_classes
         self.num_nuclei_classes = num_nuclei_classes
         self.embed_dim = embed_dim
-        self.input_channels = input_channels
-        self.depth = depth
-        self.num_heads = num_heads
-        self.mlp_ratio = mlp_ratio
-        self.qkv_bias = qkv_bias
-        self.extract_layers = extract_layers
         self.drop_rate = drop_rate
-        self.attn_drop_rate = attn_drop_rate
-        self.drop_path_rate = drop_path_rate
 
         self.encoder = unetr_vit_base_patch16(num_classes=self.num_tissue_classes)
-
-        self.encoder = ViTCellViT(
-            patch_size=self.patch_size,
-            num_classes=self.num_tissue_classes,
-            embed_dim=self.embed_dim,
-            depth=self.depth,
-            num_heads=self.num_heads,
-            mlp_ratio=self.mlp_ratio,
-            qkv_bias=self.qkv_bias,
-            norm_layer=partial(nn.LayerNorm, eps=1e-6),
-            extract_layers=self.extract_layers,
-            drop_rate=drop_rate,
-            attn_drop_rate=attn_drop_rate,
-            drop_path_rate=drop_path_rate,
-        )
 
         if self.embed_dim < 512:
             self.skip_dim_11 = 256
