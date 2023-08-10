@@ -45,8 +45,8 @@ if __name__ == '__main__':
     for idx, data in enumerate(mask_train):
         x0 = data['x0']
         x = data['x']
-        imap = data['inst_map']
-        tmap = data['type_map']
+        imap = data['instance_map']
+        tmap = data['nuclei_type_map']
         hvmap = data['hv_map']
 
         if idx == 40:
