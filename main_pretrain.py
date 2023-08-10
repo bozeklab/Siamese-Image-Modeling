@@ -240,12 +240,16 @@ class DataAugmentationForImagesWithMaps(object):
         img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
         im = imap_aug.get_arr()
 
+        np_map = im.copy()
+        np_map[np_map > 0] = 1
+
         return {
             'x0': self.to_tensor(orig_img),
             'x': self.to_tensor(img_aug),
-            'type_map': torch.tensor(tmap_aug.get_arr()),
-            'inst_map': torch.tensor(im),
-            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im))
+            'nuclei_type_map': torch.tensor(tmap_aug.get_arr()),
+            'instance_map': torch.tensor(im),
+            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
+            'nuclei_binary_map': torch.tensor(np_map, dtype=torch.int64)
         }
 
     def __repr__(self):

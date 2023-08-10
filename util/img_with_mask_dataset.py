@@ -3,9 +3,11 @@ import os
 import torch
 import torchvision.datasets as datasets
 import imageio
+import csv
 import pickle
 from scipy.ndimage import measurements
 import numpy as np
+import csv
 
 from util.tools import get_bounding_box
 
@@ -117,3 +119,46 @@ class ImagesWithSegmentationMaps(datasets.VisionDataset):
 
         hv_map = np.dstack([x_map, y_map])
         return hv_map
+
+
+class PanNukeDataset(ImagesWithSegmentationMaps):
+    tissue_types = {"Adrenal_gland": 0, "Bile-duct": 1, "Bladder": 2, "Breast": 3, "Cervix": 4,
+                    "Colon": 5, "Esophagus": 6, "HeadNeck": 7, "Kidney": 8, "Liver": 9, "Lung": 10, "Ovarian": 11,
+                    "Pancreatic": 12, "Prostate": 13, "Skin": 14, "Stomach": 15, "Testis": 16, "Thyroid": 17,
+                    "Uterus": 18}
+
+    nuclei_types = {"Background": 0, "Neoplastic": 1, "Inflammatory": 2, "Connective": 3, "Dead": 4, "Epithelial": 5}
+
+    def __len__(self):
+        return len(self.file_list)
+
+    def __init__(self, root, transform):
+        self.tissue_dict = {}
+
+        super(PanNukeDataset, self).__init__(root, transform=transform)
+
+        with open(os.path.join(root, 'types.csv'), 'r') as csv_file:
+            csv_reader = csv.DictReader(csv_file)
+            for row in csv_reader:
+                img_name = row['img']
+                tissue_type = row['type']
+                self.tissue_dict[img_name] = tissue_type
+
+    def __getitem__(self, index):
+        filename = self.file_list[index]
+        image_path = os.path.join(self.root_imgs, filename)
+        mask_path = os.path.join(self.root_masks, os.path.splitext(filename)[0] + '.npy')
+
+        image = imageio.v3.imread(image_path)
+        seg = np.load(mask_path, allow_pickle=True).item()
+        type_map = seg['type_map']
+        inst_map = seg['inst_map']
+
+        sample = self.transform(image, type_map, inst_map)
+        sample['tissue_type'] = self.tissue_dict[filename]
+
+        return sample
+
+
+
+
