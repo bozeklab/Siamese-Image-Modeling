@@ -106,19 +106,19 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
         predictions["tissue_types"], dim=-1
     )
     pred_tissue = (
-        torch.argmax(predictions["tissue_types_classes"], dim=-1).numpy().astype(np.uint8)
+        torch.argmax(predictions["tissue_types_classes"], dim=-1).detach().cpu().numpy().astype(np.uint8)
     )
     predictions["instance_map"] = predictions["instance_map"]
     predictions["instance_types_nuclei"] = (
-        predictions["instance_types_nuclei"].numpy().astype("int32")
+        predictions["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
     )
     instance_maps_gt = gt["instance_map"]
-    gt["tissue_types"] = gt["tissue_types"].numpy().astype(np.uint8)
+    gt["tissue_types"] = gt["tissue_types"].detach().cpu().numpy().astype(np.uint8)
     gt["nuclei_binary_map"] = torch.argmax(gt["nuclei_binary_map"], dim=-1).type(
         torch.uint8
     )
     gt["instance_types_nuclei"] = (
-        gt["instance_types_nuclei"].numpy().astype("int32")
+        gt["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
     )
 
     # segmentation scores
