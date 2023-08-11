@@ -27,6 +27,7 @@ import torchvision.datasets as datasets
 import timm
 
 from main_pretrain import DataAugmentationForImagesWithMaps
+from models_unetr_vit import unetr_vit_base_patch16, cell_vit_base_patch16
 from util.img_with_mask_dataset import PanNukeDataset
 
 assert timm.__version__ == "0.6.12"  # version check
@@ -115,7 +116,6 @@ def get_args_parser():
     # * Finetuning params
     parser.add_argument('--finetune', default='',
                         help='finetune from checkpoint')
-    parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
     parser.add_argument('--cls_token', action='store_false', dest='global_pool',
                         help='Use class token instead of global pool for classification')
@@ -162,6 +162,31 @@ def get_args_parser():
 
     return parser
 
+
+def prepare_model(chkpt_dir_vit, **kwargs):
+    # build ViT encoder
+
+    num_nuclei_classes = kwargs.pop('num_nuclei_classes')
+    num_tissue_classes = kwargs.pop('num_tissue_classes')
+    embed_dim = kwargs.pop('embed_dim')
+    extract_layers = kwargs.pop('extract_layers')
+    drop_rate = kwargs['drop_path_rate']
+
+    vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
+
+    # load ViT model
+    checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')
+    msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
+    print(msg)
+
+    model = cell_vit_base_patch16(num_nuclei_classes=num_nuclei_classes,
+                                  embed_dim=embed_dim,
+                                  extract_layers=extract_layers,
+                                  drop_rate=drop_rate,
+                                  encoder=vit_encoder)
+
+    # load model
+    return model
 
 def main(args):
     misc.init_distributed_mode(args)
@@ -253,42 +278,45 @@ def main(args):
             prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
             label_smoothing=args.smoothing, num_classes=args.nb_classes)
 
-    print('!!!!!!!!!!!!')
-
     # build model
-    model = models_vit.__dict__[args.model](
-        num_classes=args.nb_classes,
-        drop_path_rate=args.drop_path,
-        global_pool=args.global_pool,
-        init_values=args.init_values if args.init_values != 1.0 else None,
-    )
+    num_nuclei_classes = len(PanNukeDataset.nuclei_types)
+    num_tissue_classes = len(PanNukeDataset.tissue_types)
+    model = prepare_model(args.finetune,
+                          init_values=args.init_values,
+                          drop_path_rate=args.drop_path,
+                          num_nuclei_classes=num_nuclei_classes,
+                          num_tissue_classes=num_tissue_classes,
+                          embed_dim=args.embed_dim,
+                          extract_layers=args.extract_layers)
+
+
 
     # load ckpt
-    if args.finetune and not args.eval:
-        checkpoint = torch.load(args.finetune, map_location='cpu')
-        print("Load pre-trained checkpoint from: %s" % args.finetune)
-        checkpoint_model = checkpoint['model']
-        state_dict = model.state_dict()
-        for k in ['head.weight', 'head.bias']:
-            if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                print(f"Removing key {k} from pretrained checkpoint")
-                del checkpoint_model[k]
-
-        # interpolate position embedding
-        interpolate_pos_embed(model, checkpoint_model)
-
-        # load pre-trained model
-        msg = model.load_state_dict(checkpoint_model, strict=False)
-        print(msg)
-
-        if args.global_pool:
-            assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
-        else:
-            assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
-
-        # manually initialize fc layer
-        if hasattr(model, 'head'):
-            trunc_normal_(model.head.weight, std=2e-5)
+    # if args.finetune and not args.eval:
+    #     checkpoint = torch.load(args.finetune, map_location='cpu')
+    #     print("Load pre-trained checkpoint from: %s" % args.finetune)
+    #     checkpoint_model = checkpoint['model']
+    #     state_dict = model.state_dict()
+    #     for k in ['head.weight', 'head.bias']:
+    #         if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+    #             print(f"Removing key {k} from pretrained checkpoint")
+    #             del checkpoint_model[k]
+    #
+    #     # interpolate position embedding
+    #     interpolate_pos_embed(model, checkpoint_model)
+    #
+    #     # load pre-trained model
+    #     msg = model.load_state_dict(checkpoint_model, strict=False)
+    #     print(msg)
+    #
+    #     if args.global_pool:
+    #         assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
+    #     else:
+    #         assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
+    #
+    #     # manually initialize fc layer
+    #     if hasattr(model, 'head'):
+    #         trunc_normal_(model.head.weight, std=2e-5)
 
     model.to(device)
 
