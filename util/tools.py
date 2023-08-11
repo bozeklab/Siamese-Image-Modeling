@@ -152,7 +152,7 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
         pred_binary_map = torch.argmax(predictions["nuclei_binary_map"][i], dim=-1)
         target_binary_map = gt["nuclei_binary_map"][i]
         cell_dice = (
-            dice(preds=pred_binary_map, target=target_binary_map, ignore_index=0)
+            dice(preds=pred_binary_map, target=target_binary_map, ignore_index=0).detach().cpu()
         )
         binary_dice_scores.append(float(cell_dice))
 
@@ -161,7 +161,7 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
             binary_jaccard_index(
                 preds=pred_binary_map,
                 target=target_binary_map,
-            )
+            ).detach().cpu()
         )
         binary_jaccard_scores.append(float(cell_jaccard))
 
@@ -174,8 +174,8 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
         sq_scores.append(sq)
         scores.append(
             [
-                cell_dice.numpy(),
-                cell_jaccard.numpy(),
+                cell_dice.detach().cpu().numpy(),
+                cell_jaccard.detach().cpu().numpy(),
                 pq,
             ]
         )
