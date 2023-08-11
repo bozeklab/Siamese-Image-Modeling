@@ -27,6 +27,7 @@ import torchvision.datasets as datasets
 import timm
 
 from main_pretrain import DataAugmentationForImagesWithMaps
+from util.img_with_mask_dataset import PanNukeDataset
 
 assert timm.__version__ == "0.6.12"  # version check
 from timm.models.layers import trunc_normal_
@@ -183,8 +184,8 @@ def main(args):
     transform_train = DataAugmentationForImagesWithMaps(args)
     transform_val = DataAugmentationForImagesWithMaps(args)
     if not args.use_tcs_dataset:
-        dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val'), transform=transform_val)
+        dataset_train = PanNukeDataset(os.path.join(args.data_path), transform=transform_train)
+        dataset_val = PanNukeDataset(os.path.join(args.data_path), transform=transform_val)
     else:
         from util.tcs_datasets import ImagenetTCSDataset
         dataset_train = ImagenetTCSDataset('train',
