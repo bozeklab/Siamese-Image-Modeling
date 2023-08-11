@@ -37,7 +37,7 @@ args = Config(data_path='/data/pwojcik/SimMIM/pannuke/fold1/',
               batch_size=4,
               init_values=1.0,
               drop_path=0.1,
-              device='gpu')
+              device='cuda')
 
 
 def compute_metrics(model, sample, num_nuclei_classes):
