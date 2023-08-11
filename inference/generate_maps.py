@@ -35,7 +35,7 @@ args = Config(data_path='/data/pwojcik/SimMIM/pannuke/fold1/',
               embed_dim=768,
               extract_layers=[3, 6, 9, 12],
               batch_size=4,
-              init_values=1.0,
+              init_values=None,
               drop_path=0.1,
               device='cuda')
 
@@ -53,7 +53,7 @@ def compute_metrics(model, sample, num_nuclei_classes):
     instance_map = instance_map.to(device, non_blocking=True)
     nuclei_binary_map = nuclei_binary_map.to(device, non_blocking=True)
     hv_map = hv_map.to(device, non_blocking=True)
-    tissue_types = tissue_types.to(device, non_blocking=True)
+    #tissue_types = tissue_types.to(device, non_blocking=True)
 
     predictions_ = model(x)
     predictions = model.reshape_model_output(predictions_, x.device)
