@@ -21,6 +21,7 @@ from util.tools import calculate_step_metric
 @dataclass
 class Config:
     data_path: str
+    device: str
     input_size: int
     batch_size: int
     embed_dim: int
@@ -35,7 +36,8 @@ args = Config(data_path='/Users/piotrwojcik/data/pannuke/fold1',
               extract_layers=[3, 6, 9, 12],
               batch_size=4,
               init_values=1.0,
-              drop_path=0.1)
+              drop_path=0.1,
+              device='cpu')
 
 
 def compute_metrics(model, sample, num_nuclei_classes):
