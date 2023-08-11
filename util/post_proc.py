@@ -240,8 +240,8 @@ def calculate_instances(pred_types, pred_insts):
     """
     type_preds = []
     for i in range(pred_types.shape[0]):
-        pred_type = torch.argmax(pred_types, dim=-1)[i].detach().numpy()
-        pred_inst = pred_insts[i].detach().numpy()
+        pred_type = torch.argmax(pred_types, dim=-1)[i].numpy()
+        pred_inst = pred_insts[i].numpy()
         inst_id_list = np.unique(pred_inst)[1:]  # exlcude background
         inst_info_dict = {}
         for inst_id in inst_id_list:

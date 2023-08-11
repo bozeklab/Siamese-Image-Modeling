@@ -30,7 +30,7 @@ class Config:
     drop_path: float
 
 
-args = Config(data_path='/Users/piotrwojcik/data/pannuke/fold1',
+args = Config(data_path='/data/pwojcik/SimMIM/pannuke/fold1/',
               input_size=352,
               embed_dim=768,
               extract_layers=[3, 6, 9, 12],
@@ -42,7 +42,18 @@ args = Config(data_path='/Users/piotrwojcik/data/pannuke/fold1',
 
 def compute_metrics(model, sample, num_nuclei_classes):
     x = sample['x']
+    nuclei_type_map = sample['nuclei_type_map']
+    instance_map = sample['instance_map']
+    nuclei_binary_map = sample['nuclei_binary_map']
+    hv_map = sample['hv_map']
     tissue_types = sample['tissue_type']
+
+    x = x.to(device, non_blocking=True)
+    nuclei_type_map = nuclei_type_map.to(device, non_blocking=True)
+    instance_map = instance_map.to(device, non_blocking=True)
+    nuclei_binary_map = nuclei_binary_map.to(device, non_blocking=True)
+    hv_map = hv_map.to(device, non_blocking=True)
+    tissue_types = tissue_types.to(device, non_blocking=True)
 
     predictions_ = model(x)
     predictions = model.reshape_model_output(predictions_, x.device)
@@ -54,16 +65,16 @@ def compute_metrics(model, sample, num_nuclei_classes):
     predictions["instance_types_nuclei"] = model.generate_instance_nuclei_map(predictions["instance_map"], predictions["instance_types"])
 
     # get ground truth values, perform one hot encoding for segmentation maps
-    gt_nuclei_binary_map_onehot = (F.one_hot(sample["nuclei_binary_map"], num_classes=2)).type(torch.float32)  # background, nuclei
-    nuclei_type_maps = torch.squeeze(sample["nuclei_type_map"]).type(torch.int64)
+    gt_nuclei_binary_map_onehot = (F.one_hot(nuclei_binary_map, num_classes=2)).type(torch.float32)  # background, nuclei
+    nuclei_type_maps = torch.squeeze(nuclei_type_map).type(torch.int64)
     gt_nuclei_type_maps_onehot = F.one_hot(nuclei_type_maps, num_classes=num_nuclei_classes).type(torch.float32)
 
     gt = {
         "nuclei_type_map": gt_nuclei_type_maps_onehot,
         "nuclei_binary_map": gt_nuclei_binary_map_onehot,  # (batch_size, H, W, 2)
-        "hv_map": sample["hv_map"],  # (batch_size, H, W, 2)
-        "instance_map": sample["instance_map"],  # (batch_size, H, W) -> each instance has one integer
-        "instance_types_nuclei": gt_nuclei_type_maps_onehot * sample["instance_map"][..., None],  # (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+        "hv_map": hv_map,  # (batch_size, H, W, 2)
+        "instance_map": instance_map,  # (batch_size, H, W) -> each instance has one integer
+        "instance_types_nuclei": gt_nuclei_type_maps_onehot * instance_map[..., None],  # (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
         "tissue_types": torch.tensor([PanNukeDataset.tissue_types[t] for t in tissue_types]).type(torch.LongTensor)
     }
     gt["instance_types"] = calculate_instances(gt["nuclei_type_map"], gt["instance_map"])
@@ -112,6 +123,9 @@ if __name__ == '__main__':
                                    embed_dim=args.embed_dim,
                                    extract_layers=args.extract_layers)
 
+    device = torch.device(args.device)
+
+    model_cell_vit.to(device)
     model_cell_vit.eval()
 
     transform_maps = DataAugmentationForImagesWithMaps(args)
@@ -157,12 +171,7 @@ if __name__ == '__main__':
     for idx, sample in tqdm(enumerate(dataloader_inference), total=len(dataloader_inference)):
 
         x = sample['x']
-        type_map = sample['nuclei_type_map']
-        inst_map = sample['instance_map']
-        hv_map = sample['hv_map']
-        tissue_type = sample['tissue_type']
 
-        #z = model_cell_vit(x)
         batch_metrics, _ = compute_metrics(model_cell_vit, sample, num_nuclei_classes)
 
         # dice scores
