@@ -26,6 +26,8 @@ import torchvision.datasets as datasets
 
 import timm
 
+from main_pretrain import DataAugmentationForImagesWithMaps
+
 assert timm.__version__ == "0.6.12"  # version check
 from timm.models.layers import trunc_normal_
 from timm.data.mixup import Mixup
@@ -178,8 +180,8 @@ def main(args):
     torch.backends.cudnn.allow_tf32 = False
 
     # build dataset
-    transform_train = build_transform(is_train=True, args=args)
-    transform_val = build_transform(is_train=False, args=args)
+    transform_train = DataAugmentationForImagesWithMaps(args)
+    transform_val = DataAugmentationForImagesWithMaps(args)
     if not args.use_tcs_dataset:
         dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
         dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val'), transform=transform_val)
