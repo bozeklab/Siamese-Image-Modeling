@@ -524,10 +524,6 @@ class CellViT(nn.Module):
 
         return instance_type_nuclei_maps
 
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {'encoder.pos_embed', 'encoder.cls_token', 'encoder.dist_token'}
-
     def freeze_encoder(self):
         """Freeze encoder to not train it"""
         for layer_name, p in self.encoder.named_parameters():
