@@ -27,7 +27,7 @@ args = Config(data_path='/Users/piotrwojcik/data/he/positive',
               input_size=352,
               num_boxes=350,
               batch_size=1,
-              init_values=1.0,
+              init_values=None,
               drop_path=0.0)
 
 

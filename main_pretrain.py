@@ -229,6 +229,9 @@ class DataAugmentationForImagesWithMaps(object):
         image = resize(image, (self.args.input_size, self.args.input_size))
         image = (image * 255.0).astype(np.uint8)
 
+        type_map = type_map.astype(np.uint8)
+        inst_map = inst_map.astype(np.uint8)
+
         tmap = SegmentationMapsOnImage(type_map, shape=image.shape)
         tmap = tmap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
 

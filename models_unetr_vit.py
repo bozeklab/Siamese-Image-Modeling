@@ -448,40 +448,17 @@ class CellViT(nn.Module):
 
         return decoder
 
-    def reshape_model_output(
-        self,
-        predictions: OrderedDict,
-        device: str,
-    ) -> OrderedDict:
-        """Reshape from CHW to HWC type for selected keys
+    def reshape_model_output(self, predictions, device):
+        """Reshape from CHW to HWC type for selected keys"""
 
-        Args:
-            predictions (OrderedDict): Model raw output dictionary with the following keys:
-                * tissue_types: Raw tissue type prediction. Shape: (batch_size, num_tissue_classes)
-                * nuclei_binary_map: Raw binary cell segmentation predictions. Shape: (batch_size, 2, H, W)
-                * hv_map: Binary HV Map predictions. Shape: (batch_size, 2, H, W)
-                * nuclei_type_map: Raw binary nuclei type preditcions. Shape: (batch_size, num_nuclei_classes, H, W)
-            device (str): CUDA device as string, e.g. "cuda:0" for GPU with ID 0
-
-        Returns:
-            OrderedDict: Reshaped predictions for the keys nuclei_binary_map, hv_map, nuclei_type_map:
-                * tissue_types: Raw tissue type prediction. Shape: (batch_size, num_tissue_classes)
-                * nuclei_binary_map: Raw binary cell segmentation predictions. Shape: (batch_size, H, W, 2)
-                * hv_map: Binary HV Map predictions. Shape: (batch_size, H, W, 2)
-                * nuclei_type_map: Raw binary nuclei type preditcions. Shape: (batch_size, H, W, num_nuclei_classes)
-        """
-        predictions = OrderedDict(
-            [
-                [k, v.permute(0, 2, 3, 1).contiguous().to(device)]
-                for k, v in predictions.items()
-                if k != "tissue_types"
-            ]
-        )
+        predictions = {
+            k: v.permute(0, 2, 3, 1).contiguous().to(device)
+            for k, v in predictions.items()
+            if k != "tissue_types"
+        }
         return predictions
 
-    def calculate_instance_map(
-        self, predictions: OrderedDict, magnification: Literal[20, 40] = 40
-    ) -> Tuple[torch.Tensor, List[dict]]:
+    def calculate_instance_map(self, predictions: OrderedDict, magnification = 40):
         """Calculate Instance Map from network predictions (after Softmax output)
 
         Args:

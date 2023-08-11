@@ -3,13 +3,17 @@ from dataclasses import dataclass
 from typing import List
 
 import torch
+import numpy as np
+from sklearn.metrics import accuracy_score
 from torch.utils.data import RandomSampler
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from main_pretrain import DataAugmentationForImagesWithMaps
 from models_unetr_vit import cell_vit_base_patch16, unetr_vit_base_patch16
 
 from util.img_with_mask_dataset import PanNukeDataset
+from util.metrics import cell_detection_scores
 from util.post_proc import calculate_instances
 from util.tools import calculate_step_metric
 
@@ -39,13 +43,12 @@ def compute_metrics(model, sample, num_nuclei_classes):
     tissue_types = sample['tissue_type']
 
     predictions_ = model(x)
-
-    predictions = model.reshape_model_output(predictions_, 'cpu')
+    predictions = model.reshape_model_output(predictions_, x.device)
 
     predictions["tissue_types"] = predictions_["tissue_types"]
-    predictions["nuclei_binary_map"] = F.softmax(predictions["nuclei_binary_map"], dim=-1)  # shape: (batch_size, H, W, 2)
-    predictions["nuclei_type_map"] = F.softmax(predictions["nuclei_type_map"], dim=-1)  # shape: (batch_size, H, W, num_nuclei_classes)
-    predictions["instance_map"], predictions["instance_types"] = model.calculate_instance_map(predictions)  # shape: (batch_size, H', W')
+    predictions["nuclei_binary_map"] = F.softmax(predictions["nuclei_binary_map"], dim=-1)  # (batch_size, H, W, 2)
+    predictions["nuclei_type_map"] = F.softmax(predictions["nuclei_type_map"], dim=-1)  # (batch_size, H, W, num_nuclei_classes)
+    predictions["instance_map"], predictions["instance_types"] = model.calculate_instance_map(predictions)  # (batch_size, H', W')
     predictions["instance_types_nuclei"] = model.generate_instance_nuclei_map(predictions["instance_map"], predictions["instance_types"])
 
     # get ground truth values, perform one hot encoding for segmentation maps
@@ -53,19 +56,18 @@ def compute_metrics(model, sample, num_nuclei_classes):
     nuclei_type_maps = torch.squeeze(sample["nuclei_type_map"]).type(torch.int64)
     gt_nuclei_type_maps_onehot = F.one_hot(nuclei_type_maps, num_classes=num_nuclei_classes).type(torch.float32)
 
-
     gt = {
         "nuclei_type_map": gt_nuclei_type_maps_onehot,
-        "nuclei_binary_map": gt_nuclei_binary_map_onehot,  # shape: (batch_size, H, W, 2)
-        "hv_map": sample["hv_map"],  # shape: (batch_size, H, W, 2)
-        "instance_map": sample["instance_map"],  # shape: (batch_size, H, W) -> each instance has one integer
-        "instance_types_nuclei": gt_nuclei_type_maps_onehot * sample["instance_map"][..., None],  # shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+        "nuclei_binary_map": gt_nuclei_binary_map_onehot,  # (batch_size, H, W, 2)
+        "hv_map": sample["hv_map"],  # (batch_size, H, W, 2)
+        "instance_map": sample["instance_map"],  # (batch_size, H, W) -> each instance has one integer
+        "instance_types_nuclei": gt_nuclei_type_maps_onehot * sample["instance_map"][..., None],  # (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
         "tissue_types": torch.tensor([PanNukeDataset.tissue_types[t] for t in tissue_types]).type(torch.LongTensor)
     }
     gt["instance_types"] = calculate_instances(gt["nuclei_type_map"], gt["instance_map"])
 
     batch_metrics, scores = calculate_step_metric(predictions, gt, num_nuclei_classes)
-    batch_metrics["tissue_types"] = PanNukeDataset.tissue_types.keys()
+    batch_metrics["tissue_types"] = sample['tissue_type']
 
     return batch_metrics, scores
 
@@ -124,7 +126,33 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
-    for idx, sample in enumerate(dataloader_inference):
+    binary_dice_scores = []  # binary dice scores per image
+    binary_jaccard_scores = []  # binary jaccard scores per image
+    pq_scores = []  # pq-scores per image
+    dq_scores = []  # dq-scores per image
+    sq_scores = []  # sq-scores per image
+    cell_type_pq_scores = []  # pq-scores per cell type and image
+    cell_type_dq_scores = []  # dq-scores per cell type and image
+    cell_type_sq_scores = []  # sq-scores per cell type and image
+    tissue_pred = []  # tissue predictions for each image
+    tissue_gt = []  # ground truth tissue image class
+    tissue_types_inf = []  # string repr of ground truth tissue image class
+
+    paired_all_global = []  # unique matched index pair
+    unpaired_true_all_global = (
+        []
+    )  # the index must exist in `true_inst_type_all` and unique
+    unpaired_pred_all_global = (
+        []
+    )  # the index must exist in `pred_inst_type_all` and unique
+    true_inst_type_all_global = []  # each index is 1 independent data point
+    pred_inst_type_all_global = []  # each index is 1 independent data point
+
+    # for detections scores
+    true_idx_offset = 0
+    pred_idx_offset = 0
+
+    for idx, sample in tqdm(enumerate(dataloader_inference), total=len(dataloader_inference)):
 
         x = sample['x']
         type_map = sample['nuclei_type_map']
@@ -133,7 +161,95 @@ if __name__ == '__main__':
         tissue_type = sample['tissue_type']
 
         #z = model_cell_vit(x)
-        batch_metrics, scores = compute_metrics(model_cell_vit, sample, num_nuclei_classes)
+        batch_metrics, _ = compute_metrics(model_cell_vit, sample, num_nuclei_classes)
 
-        if idx == 5:
-            break
+        # dice scores
+        binary_dice_scores = (
+                binary_dice_scores + batch_metrics["binary_dice_scores"]
+        )
+        binary_jaccard_scores = (
+                binary_jaccard_scores + batch_metrics["binary_jaccard_scores"]
+        )
+
+        # pq scores
+        pq_scores = pq_scores + batch_metrics["pq_scores"]
+        dq_scores = dq_scores + batch_metrics["dq_scores"]
+        sq_scores = sq_scores + batch_metrics["sq_scores"]
+        tissue_types_inf = tissue_types_inf + batch_metrics["tissue_types"]
+        cell_type_pq_scores = (
+                cell_type_pq_scores + batch_metrics["cell_type_pq_scores"]
+        )
+        cell_type_dq_scores = (
+                cell_type_dq_scores + batch_metrics["cell_type_dq_scores"]
+        )
+        cell_type_sq_scores = (
+                cell_type_sq_scores + batch_metrics["cell_type_sq_scores"]
+        )
+        tissue_pred.append(batch_metrics["tissue_pred"])
+        tissue_gt.append(batch_metrics["tissue_gt"])
+
+        # detection scores
+        true_idx_offset = (
+            true_idx_offset + true_inst_type_all_global[-1].shape[0]
+            if idx != 0
+            else 0
+        )
+        pred_idx_offset = (
+            pred_idx_offset + pred_inst_type_all_global[-1].shape[0]
+            if idx != 0
+            else 0
+        )
+        true_inst_type_all_global.append(batch_metrics["true_inst_type_all"])
+        pred_inst_type_all_global.append(batch_metrics["pred_inst_type_all"])
+        # increment the pairing index statistic
+        batch_metrics["paired_all"][:, 0] += true_idx_offset
+        batch_metrics["paired_all"][:, 1] += pred_idx_offset
+        paired_all_global.append(batch_metrics["paired_all"])
+
+        batch_metrics["unpaired_true_all"] += true_idx_offset
+        batch_metrics["unpaired_pred_all"] += pred_idx_offset
+        unpaired_true_all_global.append(batch_metrics["unpaired_true_all"])
+        unpaired_pred_all_global.append(batch_metrics["unpaired_pred_all"])
+
+    # assemble batches to datasets (global)
+    tissue_types_inf = [t.lower() for t in tissue_types_inf]
+
+    paired_all = np.concatenate(paired_all_global, axis=0)
+    unpaired_true_all = np.concatenate(unpaired_true_all_global, axis=0)
+    unpaired_pred_all = np.concatenate(unpaired_pred_all_global, axis=0)
+    true_inst_type_all = np.concatenate(true_inst_type_all_global, axis=0)
+    pred_inst_type_all = np.concatenate(pred_inst_type_all_global, axis=0)
+    paired_true_type = true_inst_type_all[paired_all[:, 0]]
+    paired_pred_type = pred_inst_type_all[paired_all[:, 1]]
+    unpaired_true_type = true_inst_type_all[unpaired_true_all]
+    unpaired_pred_type = pred_inst_type_all[unpaired_pred_all]
+
+    binary_dice_scores = np.array(binary_dice_scores)
+    binary_jaccard_scores = np.array(binary_jaccard_scores)
+    pq_scores = np.array(pq_scores)
+    dq_scores = np.array(dq_scores)
+    sq_scores = np.array(sq_scores)
+
+    tissue_detection_accuracy = accuracy_score(
+        y_true=np.concatenate(tissue_gt), y_pred=np.concatenate(tissue_pred)
+    )
+    f1_d, prec_d, rec_d = cell_detection_scores(
+        paired_true=paired_true_type,
+        paired_pred=paired_pred_type,
+        unpaired_true=unpaired_true_type,
+        unpaired_pred=unpaired_pred_type,
+    )
+    dataset_metrics = {
+        "Binary-Cell-Dice-Mean": float(np.nanmean(binary_dice_scores)),
+        "Binary-Cell-Jacard-Mean": float(np.nanmean(binary_jaccard_scores)),
+        "Tissue-Multiclass-Accuracy": tissue_detection_accuracy,
+        "bPQ": float(np.nanmean(pq_scores)),
+        "bDQ": float(np.nanmean(dq_scores)),
+        "bSQ": float(np.nanmean(sq_scores)),
+        "mPQ": float(np.nanmean([np.nanmean(pq) for pq in cell_type_pq_scores])),
+        "mDQ": float(np.nanmean([np.nanmean(dq) for dq in cell_type_dq_scores])),
+        "mSQ": float(np.nanmean([np.nanmean(sq) for sq in cell_type_sq_scores])),
+        "f1_detection": float(f1_d),
+        "precision_detection": float(prec_d),
+        "recall_detection": float(rec_d),
+    }
