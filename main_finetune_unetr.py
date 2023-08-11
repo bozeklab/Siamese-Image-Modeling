@@ -162,7 +162,7 @@ def get_args_parser():
                         help='url used to set up distributed training')
 
     parser.add_argument('--auto_resume', action='store_true', default=True)
-    parser.add_argument('--init_values', default=1.0, type=float)
+    parser.add_argument('--init_values', default=None, type=float)
 
     return parser
 
