@@ -182,7 +182,8 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')
     msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
     assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
-    print(msg)
+    print('!!!')
+    print(set(msg.missing_keys))
 
     model = cell_vit_base_patch16(num_nuclei_classes=num_nuclei_classes,
                                   embed_dim=embed_dim,
