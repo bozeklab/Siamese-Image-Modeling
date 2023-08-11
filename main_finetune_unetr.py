@@ -58,6 +58,8 @@ def get_args_parser():
 
     parser.add_argument('--embed_dim', default=768, type=int)
 
+    parser.add_argument('--extract_layers', default=[3, 6, 9, 12], type=list)
+
     parser.add_argument('--input_size', default=224, type=int,
                         help='images input size')
 
