@@ -484,7 +484,7 @@ class CellViT(nn.Module):
                 [
                     torch.argmax(predictions["nuclei_type_map"], dim=-1)[i].cpu()[..., None],
                     torch.argmax(predictions["nuclei_binary_map"], dim=-1)[i].cpu()[..., None],
-                    predictions["hv_map"][i],
+                    predictions["hv_map"][i].cpu(),
                 ],
                 axis=-1,
             )
