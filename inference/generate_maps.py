@@ -37,7 +37,7 @@ args = Config(data_path='/data/pwojcik/SimMIM/pannuke/fold1/',
               batch_size=4,
               init_values=1.0,
               drop_path=0.1,
-              device='cpu')
+              device='gpu')
 
 
 def compute_metrics(model, sample, num_nuclei_classes):
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     num_nuclei_classes = len(PanNukeDataset.nuclei_types)
     num_tissue_classes = len(PanNukeDataset.tissue_types)
 
-    model_cell_vit = prepare_model('checkpoints/checkpoint-latest.pth',
+    model_cell_vit = prepare_model('/data/pwojcik/SimMIM/output_dir_800_b/checkpoint-latest.pth',
                                    init_values=args.init_values,
                                    drop_path_rate=args.drop_path,
                                    num_nuclei_classes=num_nuclei_classes,
