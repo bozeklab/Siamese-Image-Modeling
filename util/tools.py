@@ -108,21 +108,20 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
     pred_tissue = (
         torch.argmax(predictions["tissue_types_classes"], dim=-1)
         .detach()
-        .cpu()
         .numpy()
         .astype(np.uint8)
     )
-    predictions["instance_map"] = predictions["instance_map"].detach().cpu()
+    predictions["instance_map"] = predictions["instance_map"].detach()
     predictions["instance_types_nuclei"] = (
-        predictions["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
+        predictions["instance_types_nuclei"].detach().numpy().astype("int32")
     )
-    instance_maps_gt = gt["instance_map"].detach().cpu()
-    gt["tissue_types"] = gt["tissue_types"].detach().cpu().numpy().astype(np.uint8)
+    instance_maps_gt = gt["instance_map"].detach()
+    gt["tissue_types"] = gt["tissue_types"].detach().numpy().astype(np.uint8)
     gt["nuclei_binary_map"] = torch.argmax(gt["nuclei_binary_map"], dim=-1).type(
         torch.uint8
     )
     gt["instance_types_nuclei"] = (
-        gt["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
+        gt["instance_types_nuclei"].detach().numpy().astype("int32")
     )
 
     # segmentation scores
@@ -157,8 +156,6 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
         target_binary_map = gt["nuclei_binary_map"][i]
         cell_dice = (
             dice(preds=pred_binary_map, target=target_binary_map, ignore_index=0)
-            .detach()
-            .cpu()
         )
         binary_dice_scores.append(float(cell_dice))
 
@@ -168,8 +165,6 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
                 preds=pred_binary_map,
                 target=target_binary_map,
             )
-            .detach()
-            .cpu()
         )
         binary_jaccard_scores.append(float(cell_jaccard))
 
@@ -182,8 +177,8 @@ def calculate_step_metric(predictions, gt, num_nuclei_classes, magnification=40)
         sq_scores.append(sq)
         scores.append(
             [
-                cell_dice.detach().cpu().numpy(),
-                cell_jaccard.detach().cpu().numpy(),
+                cell_dice.numpy(),
+                cell_jaccard.numpy(),
                 pq,
             ]
         )

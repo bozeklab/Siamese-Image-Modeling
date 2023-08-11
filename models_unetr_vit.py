@@ -482,13 +482,9 @@ class CellViT(nn.Module):
         for i in range(predictions["nuclei_binary_map"].shape[0]):
             pred_map = np.concatenate(
                 [
-                    torch.argmax(predictions["nuclei_type_map"], dim=-1)[i]
-                    .detach()
-                    .cpu()[..., None],
-                    torch.argmax(predictions["nuclei_binary_map"], dim=-1)[i]
-                    .detach()
-                    .cpu()[..., None],
-                    predictions["hv_map"][i].detach().cpu(),
+                    torch.argmax(predictions["nuclei_type_map"], dim=-1)[i][..., None],
+                    torch.argmax(predictions["nuclei_binary_map"], dim=-1)[i][..., None],
+                    predictions["hv_map"][i],
                 ],
                 axis=-1,
             )
