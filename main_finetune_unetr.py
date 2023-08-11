@@ -33,6 +33,7 @@ from util.img_with_mask_dataset import PanNukeDataset
 assert timm.__version__ == "0.6.12"  # version check
 from timm.models.layers import trunc_normal_
 from timm.data.mixup import Mixup
+from timm.optim.optim_factory import param_groups_weight_decay
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 
 import util.lr_decay as lrd
