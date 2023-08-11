@@ -120,6 +120,8 @@ def get_args_parser():
     parser.add_argument('--mixup_mode', type=str, default='batch',
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
+    parser.add_argument('--encoder_path', default='', help='path to encoder')
+
     # * Finetuning params
     parser.add_argument('--finetune', default='',
                         help='finetune from checkpoint')
@@ -288,7 +290,7 @@ def main(args):
     # build model
     num_nuclei_classes = len(PanNukeDataset.nuclei_types)
     num_tissue_classes = len(PanNukeDataset.tissue_types)
-    model = prepare_model(args.finetune,
+    model = prepare_model(args.encoder_path,
                           init_values=args.init_values,
                           drop_path_rate=args.drop_path,
                           num_nuclei_classes=num_nuclei_classes,
