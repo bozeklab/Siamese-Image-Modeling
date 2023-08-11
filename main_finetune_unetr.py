@@ -79,6 +79,8 @@ def get_args_parser():
     parser.add_argument('--layer_decay', type=float, default=0.75,
                         help='layer-wise lr decay from ELECTRA/BEiT')
 
+    parser.add_argument('--beta2', default=0.95, type=float)
+
     parser.add_argument('--min_lr', type=float, default=1e-6, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
 
@@ -346,11 +348,9 @@ def main(args):
         model_without_ddp = model.module
 
     # build optimizer with layer-wise lr decay (lrd)
-    param_groups = lrd.param_groups_lrd(model_without_ddp, args.weight_decay,
-                                        no_weight_decay_list=model_without_ddp.no_weight_decay(),
-                                        layer_decay=args.layer_decay
-                                        )
-    optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
+    param_groups = param_groups_weight_decay(model_without_ddp, args.weight_decay)
+    optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, args.beta2))
+
     loss_scaler = NativeScaler()
 
     if mixup_fn is not None:
