@@ -47,14 +47,14 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         if data_iter_step % accum_iter == 0:
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
 
-        samples = samples.to(device, non_blocking=True)
-        targets = targets.to(device, non_blocking=True)
+        x = sample['x']
+        x = x.to(device, non_blocking=True)
 
-        if mixup_fn is not None:
-            samples, targets = mixup_fn(samples, targets)
+        print('!!!!')
+        print(sample.keys())
 
         with torch.cuda.amp.autocast():
-            outputs = model(samples)
+            outputs = model(x)
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
