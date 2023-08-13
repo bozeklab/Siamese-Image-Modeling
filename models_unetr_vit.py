@@ -461,7 +461,7 @@ class CellViT(nn.Module):
         return predictions
 
     @staticmethod
-    def calculate_instance_map(predictions: OrderedDict, num_nuclei_classes, magnification = 40):
+    def calculate_instance_map(predictions: OrderedDict, magnification = 40):
         """Calculate Instance Map from network predictions (after Softmax output)
 
         Args:
