@@ -27,7 +27,7 @@ from models_unetr_vit import CellViT
 from util.img_with_mask_dataset import PanNukeDataset
 
 
-def unpack_predictions(predictions: dict, num_nuclei_classes) -> OrderedDict:
+def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> OrderedDict:
     """Unpack the given predictions. Main focus lays on reshaping and postprocessing predictions, e.g. separating instances
 
     Args:
@@ -71,14 +71,13 @@ def unpack_predictions(predictions: dict, num_nuclei_classes) -> OrderedDict:
     predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
         predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
     ).to(
-        predictions_["nuclei_binary_map"].device
+        device
     )  # shape: (batch_size, H, W, num_nuclei_classes)
 
     return predictions_
 
 
-def unpack_masks(self, masks: dict, tissue_types: list,
-                 tissues_map, num_nuclei_classes, device) -> dict:
+def unpack_masks(masks: dict, tissues_map, num_nuclei_classes, device) -> dict:
     """Unpack the given masks. Main focus lays on reshaping and postprocessing masks to generate one dict
 
     Args:
@@ -174,7 +173,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
-            predictions = unpack_predictions(predictions_, num_nuclei_classes)
+            predictions = unpack_predictions(predictions_, num_nuclei_classes, device)
             gt = unpack_masks(masks=sample, device=device, tissues_map=PanNukeDataset.tissue_types,
                               num_nuclei_classes=num_nuclei_classes)
 
