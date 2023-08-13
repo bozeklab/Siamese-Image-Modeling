@@ -24,6 +24,7 @@ import torch.nn.functional as F
 import util.misc as misc
 import util.lr_sched as lr_sched
 from models_unetr_vit import CellViT
+from util.img_with_mask_dataset import PanNukeDataset
 
 
 def unpack_predictions(predictions: dict, num_nuclei_classes) -> OrderedDict:
@@ -76,7 +77,8 @@ def unpack_predictions(predictions: dict, num_nuclei_classes) -> OrderedDict:
     return predictions_
 
 
-def unpack_masks(self, masks: dict, tissue_types: list, num_nuclei_classes, device) -> dict:
+def unpack_masks(self, masks: dict, tissue_types: list,
+                 tissues_map, num_nuclei_classes, device) -> dict:
     """Unpack the given masks. Main focus lays on reshaping and postprocessing masks to generate one dict
 
     Args:
@@ -127,7 +129,7 @@ def unpack_masks(self, masks: dict, tissue_types: list, num_nuclei_classes, devi
         ).to(
             device
         ),  # shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
-        "tissue_types": torch.Tensor([self.tissue_types[t] for t in tissue_types])
+        "tissue_types": torch.Tensor([tissues_map[t] for t in masks["tissue_type"]])
         .type(torch.LongTensor)
         .to(device),  # shape: batch_size
     }
@@ -173,7 +175,8 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
             predictions = unpack_predictions(predictions_, num_nuclei_classes)
-            gt = unpack_masks(masks=sample, device=x.device)
+            gt = unpack_masks(masks=sample, device=device, tissues_map=PanNukeDataset.tissue_types,
+                              num_nuclei_classes=num_nuclei_classes)
 
             loss = criterion(outputs, targets)
 
