@@ -386,10 +386,7 @@ def main(args):
         train_stats = train_unetr_one_epoch(
             model, criterion, data_loader_train,
             optimizer, device, epoch, loss_scaler,
-            args.clip_grad, mixup_fn,
-            log_writer=log_writer,
-            args=args
-        )
+            args.clip_grad, log_writer=log_writer, args=args)
 
         # save model
         if args.output_dir:
