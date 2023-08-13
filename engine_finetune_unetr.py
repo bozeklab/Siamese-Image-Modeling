@@ -66,7 +66,7 @@ def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> Ordered
         predictions_["instance_map"],
         predictions_["instance_types"],
     ) = CellViT.calculate_instance_map(
-        predictions_)  # shape: (batch_size, H', W')
+        predictions_, num_nuclei_classes)  # shape: (batch_size, H', W')
     predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
         predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
     ).to(
