@@ -166,7 +166,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         x = sample['x']
 
-        print(sample['tissue_types'])
+        print(sample['tissue_type'])
 
         x = x.to(device, non_blocking=True)
 
