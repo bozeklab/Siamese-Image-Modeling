@@ -385,7 +385,7 @@ def main(args):
             data_loader_train.sampler.set_epoch(epoch)
         train_stats = train_unetr_one_epoch(
             model, criterion, data_loader_train,
-            optimizer, device, epoch, loss_scaler,
+            optimizer, device, epoch, loss_scaler, num_nuclei_classes,
             args.clip_grad, log_writer=log_writer, args=args)
 
         # save model
