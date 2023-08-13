@@ -119,8 +119,6 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
                         help='dataset path')
-    parser.add_argument('--eval_data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
-                        help='evaluation dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
     parser.add_argument('--use_tcs_dataset', default=False, action='store_true')
@@ -183,7 +181,7 @@ def main(args):
     transform_val = build_transform(is_train=False, args=args)
     if not args.use_tcs_dataset:
         dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        dataset_val = datasets.ImageFolder(os.path.join(args.eval_data_path, 'val'), transform=transform_val)
+        dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val'), transform=transform_val)
     else:
         from util.tcs_datasets import ImagenetTCSDataset
         dataset_train = ImagenetTCSDataset('train',
