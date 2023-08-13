@@ -50,6 +50,8 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         x = sample['x']
         x = x.to(device, non_blocking=True)
 
+        print(x.shape)
+
         print('!!!!')
         print(sample.keys())
 

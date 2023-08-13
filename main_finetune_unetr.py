@@ -176,7 +176,6 @@ def get_args_parser():
 
 def prepare_model(chkpt_dir_vit, **kwargs):
     # build ViT encoder
-
     num_nuclei_classes = kwargs.pop('num_nuclei_classes')
     num_tissue_classes = kwargs.pop('num_tissue_classes')
     embed_dim = kwargs.pop('embed_dim')
