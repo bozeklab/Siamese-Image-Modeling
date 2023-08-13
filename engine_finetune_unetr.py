@@ -76,6 +76,64 @@ def unpack_predictions(predictions: dict, num_nuclei_classes) -> OrderedDict:
     return predictions_
 
 
+def unpack_masks(self, masks: dict, tissue_types: list, num_nuclei_classes, device) -> dict:
+    """Unpack the given masks. Main focus lays on reshaping and postprocessing masks to generate one dict
+
+    Args:
+        masks (dict): Required keys are:
+            * instance_map: Pixel-wise nuclear instance segmentations. Shape: (batch_size, H, W)
+            * nuclei_binary_map: Binary nuclei segmentations. Shape: (batch_size, H, W, 2)
+            * hv_map: HV-Map. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Nuclei instance-prediction and segmentation (not binary, each instance has own integer). Shape: (batch_size, H, W, num_nuclei_classes)
+
+        tissue_types (list): List of string names of ground-truth tissue types
+
+    Returns:
+        dict: Output ground truth values, with keys:
+            * instance_map: Pixel-wise nuclear instance segmentations. Shape: (batch_size, H, W) -> each instance has one integer
+            * nuclei_binary_map: One-Hot encoded binary map. Shape: (batch_size, H, W, 2)
+            * hv_map: HV-map. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: One-hot encoded nuclei type maps Shape: (batch_size, H, W, num_nuclei_classes)
+            * instance_types_nuclei: Shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+            * tissue_types: Tissue types, as torch.Tensor with integer values. Shape: batch_size
+    """
+    # get ground truth values, perform one hot encoding for segmentation maps
+    gt_nuclei_binary_map_onehot = (
+        F.one_hot(masks["nuclei_binary_map"], num_classes=2)
+    ).type(
+        torch.float32
+    )  # background, nuclei
+    nuclei_type_maps = torch.squeeze(masks["nuclei_type_map"]).type(torch.int64)
+    gt_nuclei_type_maps_onehot = F.one_hot(
+        nuclei_type_maps, num_classes=num_nuclei_classes
+    ).type(
+        torch.float32
+    )  # background + nuclei types
+
+    # assemble ground truth dictionary
+    gt = {
+        "nuclei_type_map": gt_nuclei_type_maps_onehot.to(
+            device
+        ),  # shape: (batch_size, H, W, num_nuclei_classes)
+        "nuclei_binary_map": gt_nuclei_binary_map_onehot.to(
+            device
+        ),  # shape: (batch_size, H, W, 2)
+        "hv_map": masks["hv_map"].to(device),  # shape: (batch_size, H, W, 2)
+        "instance_map": masks["instance_map"].to(
+            device
+        ),  # shape: (batch_size, H, W) -> each instance has one integer
+        "instance_types_nuclei": (
+            gt_nuclei_type_maps_onehot * masks["instance_map"][..., None]
+        ).to(
+            device
+        ),  # shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+        "tissue_types": torch.Tensor([self.tissue_types[t] for t in tissue_types])
+        .type(torch.LongTensor)
+        .to(device),  # shape: batch_size
+    }
+    return gt
+
+
 def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                           data_loader: Iterable, optimizer: torch.optim.Optimizer,
                           device: torch.device, epoch: int, loss_scaler, num_nuclei_classes,
@@ -107,15 +165,16 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
 
         x = sample['x']
+
+        print(sample['tissue_types'])
+
         x = x.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
             predictions = unpack_predictions(predictions_, num_nuclei_classes)
-            print('!!!!')
-            for k in predictions.keys():
-                print(k)
-                print(predictions[k].device)
+            gt = unpack_masks(masks=sample, device=x.device)
+
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
