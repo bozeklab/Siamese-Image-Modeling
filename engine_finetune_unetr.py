@@ -111,9 +111,11 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
-            predictions = unpack_predictions(predictions_, num_nuclei_classes, device)
+             predictions = unpack_predictions(predictions_, num_nuclei_classes, device)
             print('!!!!')
-            print(predictions.keys())
+            for k in predictions.keys():
+                print(k)
+                print(predictions[k].device)
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
