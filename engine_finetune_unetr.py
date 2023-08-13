@@ -26,7 +26,7 @@ import util.lr_sched as lr_sched
 from models_unetr_vit import CellViT
 
 
-def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> OrderedDict:
+def unpack_predictions(predictions: dict, num_nuclei_classes) -> OrderedDict:
     """Unpack the given predictions. Main focus lays on reshaping and postprocessing predictions, e.g. separating instances
 
     Args:
@@ -70,7 +70,7 @@ def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> Ordered
     predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
         predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
     ).to(
-        device
+        predictions_["nuclei_binary_map"].device
     )  # shape: (batch_size, H, W, num_nuclei_classes)
 
     return predictions_
@@ -111,7 +111,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
-            predictions = unpack_predictions(predictions_, num_nuclei_classes, device)
+            predictions = unpack_predictions(predictions_, num_nuclei_classes)
             print('!!!!')
             for k in predictions.keys():
                 print(k)
