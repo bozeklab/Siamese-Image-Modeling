@@ -23,9 +23,10 @@ import torch.nn.functional as F
 
 import util.misc as misc
 import util.lr_sched as lr_sched
+from models_unetr_vit import CellViT
 
 
-def unpack_predictions(predictions: dict, model, device) -> OrderedDict:
+def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> OrderedDict:
     """Unpack the given predictions. Main focus lays on reshaping and postprocessing predictions, e.g. separating instances
 
     Args:
@@ -64,10 +65,10 @@ def unpack_predictions(predictions: dict, model, device) -> OrderedDict:
     (
         predictions_["instance_map"],
         predictions_["instance_types"],
-    ) = model.calculate_instance_map(
+    ) = CellViT.calculate_instance_map(
         predictions_)  # shape: (batch_size, H', W')
-    predictions_["instance_types_nuclei"] = model.generate_instance_nuclei_map(
-        predictions_["instance_map"], predictions_["instance_types"]
+    predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
+        predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
     ).to(
         device
     )  # shape: (batch_size, H, W, num_nuclei_classes)
@@ -77,8 +78,8 @@ def unpack_predictions(predictions: dict, model, device) -> OrderedDict:
 
 def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                           data_loader: Iterable, optimizer: torch.optim.Optimizer,
-                          device: torch.device, epoch: int, loss_scaler, max_norm: float = 0,
-                          log_writer=None, args=None):
+                          device: torch.device, epoch: int, loss_scaler, num_nuclei_classes,
+                          max_norm: float = 0, log_writer=None, args=None):
     model.train(True)
 
     binary_dice_scores = []
@@ -110,7 +111,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
-            predictions = unpack_predictions(predictions_, model, device)
+            predictions = unpack_predictions(predictions_, device, num_nuclei_classes)
             print('!!!!')
             loss = criterion(outputs, targets)
 

@@ -460,7 +460,8 @@ class CellViT(nn.Module):
         }
         return predictions
 
-    def calculate_instance_map(self, predictions: OrderedDict, magnification = 40):
+    @staticmethod
+    def calculate_instance_map(predictions: OrderedDict, num_nuclei_classes, magnification = 40):
         """Calculate Instance Map from network predictions (after Softmax output)
 
         Args:
@@ -496,9 +497,8 @@ class CellViT(nn.Module):
 
         return torch.Tensor(np.stack(instance_preds)), type_preds
 
-    def generate_instance_nuclei_map(
-        self, instance_maps: torch.Tensor, type_preds: List[dict]
-    ) -> torch.Tensor:
+    @staticmethod
+    def generate_instance_nuclei_map(instance_maps: torch.Tensor, type_preds: List[dict], num_nuclei_classes):
         """Convert instance map (binary) to nuclei type instance map
 
         Args:
@@ -510,10 +510,10 @@ class CellViT(nn.Module):
         """
         batch_size, h, w = instance_maps.shape
         instance_type_nuclei_maps = torch.zeros(
-            (batch_size, h, w, self.num_nuclei_classes)
+            (batch_size, h, w, num_nuclei_classes)
         )
         for i in range(batch_size):
-            instance_type_nuclei_map = torch.zeros((h, w, self.num_nuclei_classes))
+            instance_type_nuclei_map = torch.zeros((h, w, num_nuclei_classes))
             instance_map = instance_maps[i]
             type_pred = type_preds[i]
             for nuclei, spec in type_pred.items():
