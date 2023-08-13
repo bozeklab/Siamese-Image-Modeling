@@ -42,7 +42,7 @@ from util.datasets import build_transform
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 import models_vit
-from engine_finetune import train_one_epoch, evaluate
+from engine_finetune_unetr import train_unetr_one_epoch
 
 
 def get_args_parser():
