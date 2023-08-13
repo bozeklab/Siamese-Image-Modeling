@@ -69,7 +69,10 @@ def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> Ordered
         predictions_, num_nuclei_classes)  # shape: (batch_size, H', W')
     predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
         predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
-    )
+    ).to(
+        device
+    )  # shape: (batch_size, H, W, num_nuclei_classes)
+
     return predictions_
 
 
@@ -108,7 +111,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             predictions_ = model(x)
-            predictions = unpack_predictions(predictions_, device, num_nuclei_classes)
+            predictions = unpack_predictions(predictions_, num_nuclei_classes, device)
             print('!!!!')
             print(predictions.keys())
             loss = criterion(outputs, targets)
