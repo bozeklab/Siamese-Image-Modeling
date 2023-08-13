@@ -36,5 +36,5 @@ if __name__ == "__main__":
     input_path = Path(args.input_path)
     output_path = Path(args.output_path)
 
-    for fold in [1]:
+    for fold in [2]:
         process_fold(fold, input_path, output_path)
