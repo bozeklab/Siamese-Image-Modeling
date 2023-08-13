@@ -18,9 +18,61 @@ import torch
 
 from timm.data import Mixup
 from timm.utils import accuracy
+from collections import OrderedDict
+import torch.nn.functional as F
 
 import util.misc as misc
 import util.lr_sched as lr_sched
+
+
+def unpack_predictions(predictions: dict, model, device) -> OrderedDict:
+    """Unpack the given predictions. Main focus lays on reshaping and postprocessing predictions, e.g. separating instances
+
+    Args:
+        predictions (dict): Dictionary with the following keys:
+            * tissue_types: Logit tissue prediction output. Shape: (batch_size, num_tissue_classes)
+            * nuclei_binary_map: Logit output for binary nuclei prediction branch. Shape: (batch_size, H, W, 2)
+            * hv_map: Logit output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Logit output for nuclei instance-prediction. Shape: (batch_size, H, W, num_nuclei_classes)
+
+    Returns:
+        OrderedDict: Processed network output. Keys are:
+            * nuclei_binary_map: Softmax output for binary nuclei prediction branch. Shape: (batch_size, H, W, 2)
+            * hv_map: Logit output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Softmax output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * tissue_types: Logit tissue prediction output. Shape: (batch_size, num_tissue_classes)
+            * instance_map: Pixel-wise nuclear instance segmentation predictions. Shape: (batch_size, H, W)
+            * instance_types: Dictionary, Pixel-wise nuclei type predictions
+            * instance_types_nuclei: Pixel-wsie nuclear instance segmentation predictions, for each nuclei type. Shape: (batch_size, H, W, num_nuclei_classes)
+    """
+    # assert
+    # reshaping and postprocessing
+    predictions_ = OrderedDict(
+        [
+            [k, v.permute(0, 2, 3, 1).contiguous().to(device)]
+            for k, v in predictions.items()
+            if k != "tissue_types"
+        ]
+    )
+    predictions_["tissue_types"] = predictions["tissue_types"].to(device)
+    predictions_["nuclei_binary_map"] = F.softmax(
+        predictions_["nuclei_binary_map"], dim=-1
+    )  # shape: (batch_size, H, W, 2)
+    predictions_["nuclei_type_map"] = F.softmax(
+        predictions_["nuclei_type_map"], dim=-1
+    )  # shape: (batch_size, H, W, num_nuclei_classes)
+    (
+        predictions_["instance_map"],
+        predictions_["instance_types"],
+    ) = model.calculate_instance_map(
+        predictions_)  # shape: (batch_size, H', W')
+    predictions_["instance_types_nuclei"] = model.generate_instance_nuclei_map(
+        predictions_["instance_map"], predictions_["instance_types"]
+    ).to(
+        device
+    )  # shape: (batch_size, H, W, num_nuclei_classes)
+
+    return predictions_
 
 
 def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
@@ -29,6 +81,13 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                           mixup_fn: Optional[Mixup] = None, log_writer=None,
                           args=None):
     model.train(True)
+
+    binary_dice_scores = []
+    binary_jaccard_scores = []
+    tissue_pred = []
+    tissue_gt = []
+    train_example_img = None
+
     metric_logger = misc.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', misc.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
@@ -50,13 +109,10 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         x = sample['x']
         x = x.to(device, non_blocking=True)
 
-        print(x.shape)
-
-        print('!!!!')
-        print(sample.keys())
-
         with torch.cuda.amp.autocast():
-            outputs = model(x)
+            predictions_ = model(x)
+            predictions = unpack_predictions(predictions_, model, device)
+            print('!!!!')
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
