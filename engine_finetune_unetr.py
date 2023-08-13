@@ -50,12 +50,12 @@ def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> Ordered
     # reshaping and postprocessing
     predictions_ = OrderedDict(
         [
-            [k, v.permute(0, 2, 3, 1).contiguous().to(device)]
+            [k, v.permute(0, 2, 3, 1).contiguous()]
             for k, v in predictions.items()
             if k != "tissue_types"
         ]
     )
-    predictions_["tissue_types"] = predictions["tissue_types"].to(device)
+    predictions_["tissue_types"] = predictions["tissue_types"]
     predictions_["nuclei_binary_map"] = F.softmax(
         predictions_["nuclei_binary_map"], dim=-1
     )  # shape: (batch_size, H, W, 2)
@@ -69,10 +69,7 @@ def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> Ordered
         predictions_, num_nuclei_classes)  # shape: (batch_size, H', W')
     predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
         predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
-    ).to(
-        device
-    )  # shape: (batch_size, H, W, num_nuclei_classes)
-
+    )
     return predictions_
 
 
@@ -113,6 +110,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             predictions_ = model(x)
             predictions = unpack_predictions(predictions_, device, num_nuclei_classes)
             print('!!!!')
+            print(predictions.keys())
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
