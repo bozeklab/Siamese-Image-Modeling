@@ -277,8 +277,7 @@ def calculate_step_metric_train(predictions: dict, gt: dict) -> dict:
     return batch_metrics
 
 
-def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
-                          data_loader: Iterable, optimizer: torch.optim.Optimizer,
+def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimizer: torch.optim.Optimizer,
                           device: torch.device, epoch: int, loss_scaler, num_nuclei_classes,
                           loss_setting, max_norm: float = 0, log_writer=None, args=None):
     model.train(True)
@@ -294,6 +293,11 @@ def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
 
     if log_writer is not None:
         print('log_dir: {}'.format(log_writer.log_dir))
+
+    binary_dice_scores = []
+    binary_jaccard_scores = []
+    tissue_pred = []
+    tissue_gt = []
 
     for data_iter_step, sample in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
@@ -314,7 +318,13 @@ def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
             metric_logger.update(**outputs)
 
         loss_value = loss.item()
-        #batch_metrics = calculate_step_metric_train(predictions, gt)
+        batch_metrics = calculate_step_metric_train(predictions, gt)
+        binary_dice_scores = (
+                binary_dice_scores + batch_metrics["binary_dice_scores"]
+        )
+        binary_jaccard_scores = (
+                binary_jaccard_scores + batch_metrics["binary_jaccard_scores"]
+        )
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
@@ -349,42 +359,61 @@ def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
             log_writer.add_scalar('loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', max_lr, epoch_1000x)
 
+        # calculate global metrics
+    binary_dice_scores = np.array(binary_dice_scores)
+    binary_jaccard_scores = np.array(binary_jaccard_scores)
+    tissue_detection_accuracy = accuracy_score(y_true=np.concatenate(tissue_gt),
+                                               y_pred=np.concatenate(tissue_pred))
+
+    scalar_metrics = {
+        "Binary-Cell-Dice-Mean/Train": np.nanmean(binary_dice_scores),
+        "Binary-Cell-Jacard-Mean/Train": np.nanmean(binary_jaccard_scores),
+        "Tissue-Multiclass-Accuracy/Train": tissue_detection_accuracy,
+    }
+
+    print(scalar_metrics)
+
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
-@torch.no_grad()
-def evaluate(data_loader, model, device):
-    criterion = torch.nn.CrossEntropyLoss()
-
-    metric_logger = misc.MetricLogger(delimiter="  ")
-    header = 'Test:'
-
-    # switch to evaluation mode
-    model.eval()
-
-    for batch in metric_logger.log_every(data_loader, 10, header):
-        images = batch[0]
-        target = batch[-1]
-        images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
-
-        # compute output
-        with torch.cuda.amp.autocast():
-            output = model(images)
-            loss = criterion(output, target)
-
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
-
-        batch_size = images.shape[0]
-        metric_logger.update(loss=loss.item())
-        metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
-        metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
-    # gather the stats from all processes
-    metric_logger.synchronize_between_processes()
-    print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-          .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
-
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+# @torch.no_grad()
+# def unetr_evaluate(data_loader, model, device):
+#
+#     metric_logger = misc.MetricLogger(delimiter="  ")
+#     header = 'Test:'
+#
+#     # switch to evaluation mode
+#     model.eval()
+#
+#     binary_dice_scores = []
+#     binary_jaccard_scores = []
+#     pq_scores = []
+#     cell_type_pq_scores = []
+#     tissue_pred = []
+#     tissue_gt = []
+#     val_example_img = No
+#
+#     for sample in metric_logger.log_every(data_loader, 10, header):
+#         x = sample['x']
+#         x = x.to(device, non_blocking=True)
+#
+#         # compute output
+#         with torch.cuda.amp.autocast():
+#             output = model(images)
+#             loss = criterion(output, target)
+#
+#         acc1, acc5 = accuracy(output, target, topk=(1, 5))
+#
+#         batch_size = images.shape[0]
+#         metric_logger.update(loss=loss.item())
+#         metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
+#         metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+#     # gather the stats from all processes
+#     metric_logger.synchronize_between_processes()
+#     print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
+#           .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
+#
+#     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}

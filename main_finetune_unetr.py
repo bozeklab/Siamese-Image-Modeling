@@ -383,15 +383,15 @@ def main(args):
 
     loss_scaler = NativeScaler()
 
-    if mixup_fn is not None:
-        # smoothing is handled with mixup label transform
-        criterion = SoftTargetCrossEntropy()
-    elif args.smoothing > 0.:
-        criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
-    else:
-        criterion = torch.nn.CrossEntropyLoss()
-
-    print("criterion = %s" % str(criterion))
+    # if mixup_fn is not None:
+    #     # smoothing is handled with mixup label transform
+    #     criterion = SoftTargetCrossEntropy()
+    # elif args.smoothing > 0.:
+    #     criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
+    # else:
+    #     criterion = torch.nn.CrossEntropyLoss()
+    #
+    # print("criterion = %s" % str(criterion))
 
     # misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
     misc.auto_load_model(
@@ -412,7 +412,7 @@ def main(args):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
         train_stats = train_unetr_one_epoch(
-            model, criterion, data_loader_train,
+            model, data_loader_train,
             optimizer, device, epoch, loss_scaler, num_nuclei_classes,
             loss_setting, args.clip_grad, log_writer=log_writer, args=args)
 
