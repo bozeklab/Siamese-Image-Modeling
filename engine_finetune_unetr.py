@@ -135,7 +135,7 @@ def unpack_masks(masks: dict, tissues_map, num_nuclei_classes, device) -> dict:
     return gt
 
 
-def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
+def calculate_loss(predictions: OrderedDict, gt: dict, loss_dict, device):
     """Calculate the loss
 
     Args:
@@ -170,15 +170,10 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
             "instance_types_nuclei",
         ]:  # TODO: rather select branch from loss functions?
             continue
-        print('!!!')
-        print(loss_setting.keys())
-        print(branch)
-        print()
-        branch_loss_fns = loss_setting[branch]
-        print(branch_loss_fns)
-        for loss_name, loss_setting in branch_loss_fns.items():
-            loss_fn = loss_setting["loss_fn"]
-            weight = loss_setting["weight"]
+        branch_loss_fns = loss_dict[branch]
+        for loss_name, loss_settings in branch_loss_fns.items():
+            loss_fn = loss_dict["loss_fn"]
+            weight = loss_dict["weight"]
             if loss_name == "msge":
                 loss_value = loss_fn(
                     input=pred,
