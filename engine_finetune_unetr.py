@@ -373,10 +373,15 @@ def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimiz
         "Tissue-Multiclass-Accuracy/Train": tissue_detection_accuracy,
     }
 
-    print(scalar_metrics)
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
+
+    print("Scalar metrics for epoch [{}]".format(epoch))
+    print("-----------------------")
+    for key, value in scalar_metrics.items():
+        print(f"{key}\t\t{value:.2f}")
+
     print("Averaged stats:", metric_logger)
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 

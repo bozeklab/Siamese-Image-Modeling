@@ -422,7 +422,7 @@ def main(args):
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch, latest=True)
 
-        if (epoch + 1) % 5 == 0:
+        if (epoch + 1) % 10 == 0:
             test_stats = evaluate(data_loader_val, model, device)
             print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
             max_accuracy = max(max_accuracy, test_stats["acc1"])
