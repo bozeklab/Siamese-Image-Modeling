@@ -314,8 +314,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
             metric_logger.update(**outputs)
 
         loss_value = loss.item()
-        batch_metrics = calculate_step_metric_train(predictions, gt)
-        print(batch_metrics)
+        #batch_metrics = calculate_step_metric_train(predictions, gt)
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
