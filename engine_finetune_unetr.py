@@ -161,9 +161,7 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
     total_loss = 0
     outputs = {}
 
-    print('!!!')
-    print(loss_setting.keys())
-    print()
+
 
     for branch, pred in predictions.items():
         if branch in [
@@ -172,6 +170,10 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
             "instance_types_nuclei",
         ]:  # TODO: rather select branch from loss functions?
             continue
+        print('!!!')
+        print(loss_setting.keys())
+        print(branch)
+        print()
         branch_loss_fns = loss_setting[branch]
         print(branch_loss_fns)
         for loss_name, loss_setting in branch_loss_fns.items():
