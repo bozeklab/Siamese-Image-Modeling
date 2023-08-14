@@ -161,8 +161,6 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_dict, device):
     total_loss = 0
     outputs = {}
 
-
-
     for branch, pred in predictions.items():
         if branch in [
             "instance_map",
@@ -172,8 +170,8 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_dict, device):
             continue
         branch_loss_fns = loss_dict[branch]
         for loss_name, loss_settings in branch_loss_fns.items():
-            loss_fn = loss_dict["loss_fn"]
-            weight = loss_dict["weight"]
+            loss_fn = loss_settings["loss_fn"]
+            weight = loss_settings["weight"]
             if loss_name == "msge":
                 loss_value = loss_fn(
                     input=pred,
