@@ -183,7 +183,6 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
                 loss_value = loss_fn(input=pred, target=gt[branch])
             total_loss = total_loss + weight * loss_value
             outputs[f"{branch}_{loss_name}"] = loss_value.item()
-    outputs["total_loss"].update(total_loss.item())
 
     return total_loss, outputs
 
@@ -221,7 +220,8 @@ def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
             gt = unpack_masks(masks=sample, device=device, tissues_map=PanNukeDataset.tissue_types,
                               num_nuclei_classes=num_nuclei_classes)
 
-            loss = calculate_loss(predictions, gt, loss_setting, device)
+            loss, outputs = calculate_loss(predictions, gt, loss_setting, device)
+            metric_logger.update(**outputs)
 
         loss_value = loss.item()
 
