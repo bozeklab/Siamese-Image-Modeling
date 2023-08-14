@@ -17,6 +17,7 @@ import json
 import numpy as np
 import os
 import time
+import torch.nn as nn
 from pathlib import Path
 
 import torch
@@ -28,6 +29,7 @@ import timm
 
 from main_pretrain import DataAugmentationForImagesWithMaps
 from models_unetr_vit import unetr_vit_base_patch16, cell_vit_base_patch16
+from util.base_loss import retrieve_loss_fn
 from util.img_with_mask_dataset import PanNukeDataset
 
 assert timm.__version__ == "0.6.12"  # version check
@@ -172,6 +174,31 @@ def get_args_parser():
     parser.add_argument('--init_values', default=None, type=float)
 
     return parser
+
+
+def prepare_loss_fn():
+    loss_fn_dict = {}
+    loss_fn_dict["nuclei_binary_map"] = {}
+
+    loss_fn_dict["nuclei_binary_map"] = {
+        "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 1},
+        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1},}
+
+    loss_fn_dict["hv_map"] = {
+        "mse": {"loss_fn": retrieve_loss_fn("mse_loss_maps"), "weight": 1},
+        "msge": {"loss_fn": retrieve_loss_fn("msge_loss_maps"), "weight": 1},
+    }
+
+    loss_fn_dict["nuclei_type_map"] = {
+        "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 1},
+        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1},
+    }
+
+    loss_fn_dict["tissue_types"] = {
+        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 1},
+    }
+
+    return loss_fn_dict
 
 
 def prepare_model(chkpt_dir_vit, **kwargs):
@@ -375,6 +402,8 @@ def main(args):
         test_stats = evaluate(data_loader_val, model, device)
         print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         exit(0)
+
+    loss_setting = prepare_loss_fn()
 
     # start training
     print(f"Start training for {args.epochs} epochs")

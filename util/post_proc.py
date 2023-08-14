@@ -1,5 +1,5 @@
 import warnings
-from typing import Tuple, Literal
+from typing import Tuple, Literal, OrderedDict, List
 
 import cv2
 import numpy as np
@@ -304,3 +304,69 @@ def calculate_instances(pred_types, pred_insts):
         type_preds.append(inst_info_dict)
 
     return type_preds
+
+
+def calculate_instance_map(predictions: OrderedDict, num_nuclei_classes, magnification=40):
+    """Calculate Instance Map from network predictions (after Softmax output)
+
+    Args:
+        predictions (dict): Dictionary with the following required keys:
+            * nuclei_binary_map: Binary Nucleus Predictions. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Type prediction of nuclei. Shape: (batch_size, H, W, 6)
+            * hv_map: Horizontal-Vertical nuclei mapping. Shape: (batch_size, H, W, 2)
+        magnification (Literal[20, 40], optional): Which magnification the data has. Defaults to 40.
+
+    Returns:
+        Tuple[torch.Tensor, List[dict]]:
+            * torch.Tensor: Instance map. Each Instance has own integer. Shape: (batch_size, H, W)
+            * List of dictionaries. Each List entry is one image. Each dict contains another dict for each detected nucleus.
+                For each nucleus, the following information are returned: "bbox", "centroid", "contour", "type_prob", "type"
+    """
+    cell_post_processor = DetectionCellPostProcessor(
+        nr_types=num_nuclei_classes, magnification=magnification, gt=False
+    )
+    instance_preds = []
+    type_preds = []
+    for i in range(predictions["nuclei_binary_map"].shape[0]):
+        pred_map = np.concatenate(
+            [
+                torch.argmax(predictions["nuclei_type_map"], dim=-1)[i].detach().cpu()[..., None],
+                torch.argmax(predictions["nuclei_binary_map"], dim=-1)[i].detach().cpu()[..., None],
+                predictions["hv_map"][i].detach().cpu(),
+            ],
+            axis=-1,
+        )
+        instance_pred = cell_post_processor.post_process_cell_segmentation(pred_map)
+        instance_preds.append(instance_pred[0])
+        type_preds.append(instance_pred[1])
+
+    return torch.Tensor(np.stack(instance_preds)), type_preds
+
+
+def generate_instance_nuclei_map(instance_maps: torch.Tensor, type_preds: List[dict], num_nuclei_classes):
+    """Convert instance map (binary) to nuclei type instance map
+
+    Args:
+        instance_maps (torch.Tensor): Binary instance map, each instance has own integer. Shape: (batch_size, H, W)
+        type_preds (List[dict]): List (len=batch_size) of dictionary with instance type information (compare post_process_hovernet function for more details)
+
+    Returns:
+        torch.Tensor: Nuclei type instance map. Shape: (batch_size, H, W, self.num_nuclei_classes)
+    """
+    batch_size, h, w = instance_maps.shape
+    instance_type_nuclei_maps = torch.zeros(
+        (batch_size, h, w, num_nuclei_classes)
+    )
+    for i in range(batch_size):
+        instance_type_nuclei_map = torch.zeros((h, w, num_nuclei_classes))
+        instance_map = instance_maps[i]
+        type_pred = type_preds[i]
+        for nuclei, spec in type_pred.items():
+            nuclei_type = spec["type"]
+            instance_type_nuclei_map[:, :, nuclei_type][
+                instance_map == nuclei
+            ] = nuclei
+
+        instance_type_nuclei_maps[i, :, :, :] = instance_type_nuclei_map
+
+    return instance_type_nuclei_maps

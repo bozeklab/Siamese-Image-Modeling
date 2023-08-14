@@ -25,6 +25,7 @@ import util.misc as misc
 import util.lr_sched as lr_sched
 from models_unetr_vit import CellViT
 from util.img_with_mask_dataset import PanNukeDataset
+from util.post_proc import calculate_instance_map, generate_instance_nuclei_map
 
 
 def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> OrderedDict:
@@ -66,9 +67,8 @@ def unpack_predictions(predictions: dict, num_nuclei_classes, device) -> Ordered
     (
         predictions_["instance_map"],
         predictions_["instance_types"],
-    ) = CellViT.calculate_instance_map(
-        predictions_, num_nuclei_classes)  # shape: (batch_size, H', W')
-    predictions_["instance_types_nuclei"] = CellViT.generate_instance_nuclei_map(
+    ) = calculate_instance_map(predictions_, num_nuclei_classes)  # shape: (batch_size, H', W')
+    predictions_["instance_types_nuclei"] = generate_instance_nuclei_map(
         predictions_["instance_map"], predictions_["instance_types"], num_nuclei_classes,
     ).to(
         device
@@ -135,17 +135,64 @@ def unpack_masks(masks: dict, tissues_map, num_nuclei_classes, device) -> dict:
     return gt
 
 
-def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
+def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
+    """Calculate the loss
+
+    Args:
+        predictions (OrderedDict): OrderedDict: Processed network output. Keys are:
+            * nuclei_binary_map: Softmax output for binary nuclei prediction branch. Shape: (batch_size, H, W, 2)
+            * hv_map: Logit output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Softmax output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * tissue_types: Logit tissue prediction output. Shape: (batch_size, num_tissue_classes)
+            * instance_map: Pixel-wise nuclear instance segmentation predictions. Shape: (batch_size, H, W)
+            * instance_types: Dictionary, Pixel-wise nuclei type predictions
+            * instance_types_nuclei: Pixel-wsie nuclear instance segmentation predictions, for each nuclei type. Shape: (batch_size, H, W, num_nuclei_classes)
+        gt (dict): Ground truth values, with keys:
+            * instance_map: Pixel-wise nuclear instance segmentations. Shape: (batch_size, H, W) -> each instance has one integer
+            * nuclei_binary_map: One-Hot encoded binary map. Shape: (batch_size, H, W, 2)
+            * hv_map: HV-map. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: One-hot encoded nuclei type maps Shape: (batch_size, H, W, num_nuclei_classes)
+            * instance_types_nuclei: Shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+            * tissue_types: Tissue types, as torch.Tensor with integer values. Shape: batch_size
+
+    Returns:
+        torch.Tensor: Loss
+    """
+    total_loss = 0
+    outputs = {}
+
+    for branch, pred in predictions.items():
+        if branch in [
+            "instance_map",
+            "instance_types",
+            "instance_types_nuclei",
+        ]:  # TODO: rather select branch from loss functions?
+            continue
+        branch_loss_fns = loss_setting[branch]
+        for loss_name, loss_setting in branch_loss_fns.items():
+            loss_fn = loss_setting["loss_fn"]
+            weight = loss_setting["weight"]
+            if loss_name == "msge":
+                loss_value = loss_fn(
+                    input=pred,
+                    target=gt[branch],
+                    focus=gt["nuclei_binary_map"][..., 1],
+                    device=device,
+                )
+            else:
+                loss_value = loss_fn(input=pred, target=gt[branch])
+            total_loss = total_loss + weight * loss_value
+            outputs[f"{branch}_{loss_name}"] = loss_value.item()
+    outputs["total_loss"].update(total_loss.item())
+
+    return total_loss, outputs
+
+
+def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
                           data_loader: Iterable, optimizer: torch.optim.Optimizer,
                           device: torch.device, epoch: int, loss_scaler, num_nuclei_classes,
-                          max_norm: float = 0, log_writer=None, args=None):
+                          loss_setting, max_norm: float = 0, log_writer=None, args=None):
     model.train(True)
-
-    binary_dice_scores = []
-    binary_jaccard_scores = []
-    tissue_pred = []
-    tissue_gt = []
-    train_example_img = None
 
     metric_logger = misc.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', misc.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -166,9 +213,6 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
 
         x = sample['x']
-
-        print(sample['tissue_type'])
-
         x = x.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
@@ -177,7 +221,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             gt = unpack_masks(masks=sample, device=device, tissues_map=PanNukeDataset.tissue_types,
                               num_nuclei_classes=num_nuclei_classes)
 
-            loss = criterion(outputs, targets)
+            loss = calculate_loss(predictions, gt, loss_setting, device)
 
         loss_value = loss.item()
 
