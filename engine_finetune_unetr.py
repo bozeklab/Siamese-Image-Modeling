@@ -530,8 +530,6 @@ def unetr_evaluate(data_loader, model, num_nuclei_classes,
             gt = unpack_masks(masks=sample, device=device, tissues_map=PanNukeDataset.tissue_types,
                               num_nuclei_classes=num_nuclei_classes)
 
-            #loss, outputs = calculate_loss(predictions, gt, loss_setting, device)
-
         batch_metrics = calculate_step_metric_validation(predictions, gt, num_nuclei_classes)
         binary_dice_scores = (
                 binary_dice_scores + batch_metrics["binary_dice_scores"]

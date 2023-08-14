@@ -45,6 +45,7 @@ from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 import models_vit
 from engine_finetune_unetr import train_unetr_one_epoch
+from engine_finetune_unetr import unetr_evaluate
 
 
 def get_args_parser():
@@ -422,7 +423,7 @@ def main(args):
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch, latest=True)
 
-        if (epoch + 1) % 3 == 0:
+        if (epoch + 1) % 1 == 0:
             unetr_evaluate(data_loader, model, num_nuclei_classes,
                            PanNukeDataset.tissue_types, PanNukeDataset.nuclei_types,
                            PanNukeDataset.reverse_tissue_types, device)
