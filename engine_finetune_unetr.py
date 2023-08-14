@@ -161,6 +161,9 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
     total_loss = 0
     outputs = {}
 
+    print('!!!')
+    print(loss_setting.keys())
+
     for branch, pred in predictions.items():
         if branch in [
             "instance_map",

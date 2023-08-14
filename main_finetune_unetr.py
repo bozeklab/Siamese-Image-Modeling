@@ -178,7 +178,6 @@ def get_args_parser():
 
 def prepare_loss_fn():
     loss_fn_dict = {}
-    loss_fn_dict["nuclei_binary_map"] = {}
 
     loss_fn_dict["nuclei_binary_map"] = {
         "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 1},
