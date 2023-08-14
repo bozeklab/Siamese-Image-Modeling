@@ -29,6 +29,7 @@ import util.lr_sched as lr_sched
 import numpy as np
 from models_unetr_vit import CellViT
 from util.img_with_mask_dataset import PanNukeDataset
+from util.metrics import remap_label, get_fast_pq
 from util.post_proc import calculate_instance_map, generate_instance_nuclei_map
 
 
@@ -277,6 +278,124 @@ def calculate_step_metric_train(predictions: dict, gt: dict) -> dict:
     return batch_metrics
 
 
+def calculate_step_metric_validation(predictions: dict, gt: dict, num_classes):
+    """Calculate the metrics for the validation step
+
+    Args:
+        predictions (OrderedDict): OrderedDict: Processed network output. Keys are:
+            * nuclei_binary_map: Softmax output for binary nuclei prediction branch. Shape: (batch_size, H, W, 2)
+            * hv_map: Logit output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Softmax output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * tissue_types: Logit tissue prediction output. Shape: (batch_size, num_tissue_classes)
+            * instance_map: Pixel-wise nuclear instance segmentation predictions. Shape: (batch_size, H, W)
+            * instance_types: Dictionary, Pixel-wise nuclei type predictions
+            * instance_types_nuclei: Pixel-wsie nuclear instance segmentation predictions, for each nuclei type. Shape: (batch_size, H, W, num_nuclei_classes)
+        gt (dict): Ground truth values, with keys:
+            * instance_map: Pixel-wise nuclear instance segmentations. Shape: (batch_size, H, W) -> each instance has one integer
+            * nuclei_binary_map: One-Hot encoded binary map. Shape: (batch_size, H, W, 2)
+            * hv_map: HV-map. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: One-hot encoded nuclei type maps Shape: (batch_size, H, W, num_nuclei_classes)
+            * instance_types_nuclei: Shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+            * tissue_types: Tissue types, as torch.Tensor with integer values. Shape: batch_size
+
+    Returns:
+        dict: Dictionary with metrics. Structure not fixed yet
+    """
+    # preparation and device movement
+    predictions["tissue_types_classes"] = F.softmax(
+        predictions["tissue_types"], dim=-1
+    )
+    pred_tissue = (
+        torch.argmax(predictions["tissue_types_classes"], dim=-1)
+        .detach()
+        .cpu()
+        .numpy()
+        .astype(np.uint8)
+    )
+    predictions["instance_map"] = predictions["instance_map"].detach().cpu()
+    predictions["instance_types_nuclei"] = (
+        predictions["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
+    )
+    instance_maps_gt = gt["instance_map"].detach().cpu()
+    gt["tissue_types"] = gt["tissue_types"].detach().cpu().numpy().astype(np.uint8)
+    gt["nuclei_binary_map"] = torch.argmax(gt["nuclei_binary_map"], dim=-1).type(
+        torch.uint8
+    )
+    gt["instance_types_nuclei"] = (
+        gt["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
+    )
+
+    tissue_detection_accuracy = accuracy_score(
+        y_true=gt["tissue_types"], y_pred=pred_tissue
+    )
+
+    binary_dice_scores = []
+    binary_jaccard_scores = []
+    cell_type_pq_scores = []
+    pq_scores = []
+
+    for i in range(len(pred_tissue)):
+        # binary dice score: Score for cell detection per image, without background
+        pred_binary_map = torch.argmax(predictions["nuclei_binary_map"][i], dim=-1)
+        target_binary_map = gt["nuclei_binary_map"][i]
+        cell_dice = (
+            dice(preds=pred_binary_map, target=target_binary_map, ignore_index=0)
+            .detach()
+            .cpu()
+        )
+        binary_dice_scores.append(float(cell_dice))
+
+        # binary aji
+        cell_jaccard = (
+            binary_jaccard_index(
+                preds=pred_binary_map,
+                target=target_binary_map,
+            )
+            .detach()
+            .cpu()
+        )
+        binary_jaccard_scores.append(float(cell_jaccard))
+        # pq values
+        remapped_instance_pred = remap_label(predictions["instance_map"][i])
+        remapped_gt = remap_label(instance_maps_gt[i])
+        [_, _, pq], _ = get_fast_pq(true=remapped_gt, pred=remapped_instance_pred)
+        pq_scores.append(pq)
+
+        # pq values per class (skip background)
+        nuclei_type_pq = []
+        for j in range(0, num_classes):
+            pred_nuclei_instance_class = remap_label(
+                predictions["instance_types_nuclei"][i][..., j]
+            )
+            target_nuclei_instance_class = remap_label(
+                gt["instance_types_nuclei"][i][..., j]
+            )
+
+            # if ground truth is empty, skip from calculation
+            if len(np.unique(target_nuclei_instance_class)) == 1:
+                pq_tmp = np.nan
+            else:
+                [_, _, pq_tmp], _ = get_fast_pq(
+                    pred_nuclei_instance_class,
+                    target_nuclei_instance_class,
+                    match_iou=0.5,
+                )
+            nuclei_type_pq.append(pq_tmp)
+
+        cell_type_pq_scores.append(nuclei_type_pq)
+
+    batch_metrics = {
+        "binary_dice_scores": binary_dice_scores,
+        "binary_jaccard_scores": binary_jaccard_scores,
+        "pq_scores": pq_scores,
+        "cell_type_pq_scores": cell_type_pq_scores,
+        "tissue_pred": pred_tissue,
+        "tissue_gt": gt["tissue_types"],
+    }
+
+    return batch_metrics
+
+
 def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimizer: torch.optim.Optimizer,
                           device: torch.device, epoch: int, loss_scaler, num_nuclei_classes,
                           loss_setting, max_norm: float = 0, log_writer=None, args=None):
@@ -386,41 +505,96 @@ def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimiz
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
-# @torch.no_grad()
-# def unetr_evaluate(data_loader, model, device):
-#
-#     metric_logger = misc.MetricLogger(delimiter="  ")
-#     header = 'Test:'
-#
-#     # switch to evaluation mode
-#     model.eval()
-#
-#     binary_dice_scores = []
-#     binary_jaccard_scores = []
-#     pq_scores = []
-#     cell_type_pq_scores = []
-#     tissue_pred = []
-#     tissue_gt = []
-#     val_example_img = No
-#
-#     for sample in metric_logger.log_every(data_loader, 10, header):
-#         x = sample['x']
-#         x = x.to(device, non_blocking=True)
-#
-#         # compute output
-#         with torch.cuda.amp.autocast():
-#             output = model(images)
-#             loss = criterion(output, target)
-#
-#         acc1, acc5 = accuracy(output, target, topk=(1, 5))
-#
-#         batch_size = images.shape[0]
-#         metric_logger.update(loss=loss.item())
-#         metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
-#         metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
-#     # gather the stats from all processes
-#     metric_logger.synchronize_between_processes()
-#     print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-#           .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
-#
-#     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+@torch.no_grad()
+def unetr_evaluate(data_loader, model, num_nuclei_classes,
+                   tissue_types, nuclei_types, reverse_tissue_types, device):
+
+    # switch to evaluation mode
+    model.eval()
+
+    binary_dice_scores = []
+    binary_jaccard_scores = []
+    pq_scores = []
+    cell_type_pq_scores = []
+    tissue_pred = []
+    tissue_gt = []
+
+    for sample in data_loader:
+        x = sample['x']
+        x = x.to(device, non_blocking=True)
+
+        # compute output
+        with torch.cuda.amp.autocast():
+            predictions_ = model(x)
+            predictions = unpack_predictions(predictions_, num_nuclei_classes, device)
+            gt = unpack_masks(masks=sample, device=device, tissues_map=PanNukeDataset.tissue_types,
+                              num_nuclei_classes=num_nuclei_classes)
+
+            #loss, outputs = calculate_loss(predictions, gt, loss_setting, device)
+
+        batch_metrics = calculate_step_metric_validation(predictions, gt)
+        binary_dice_scores = (
+                binary_dice_scores + batch_metrics["binary_dice_scores"]
+        )
+        binary_jaccard_scores = (
+                binary_jaccard_scores + batch_metrics["binary_jaccard_scores"]
+        )
+        pq_scores = pq_scores + batch_metrics["pq_scores"]
+        cell_type_pq_scores = (
+                cell_type_pq_scores + batch_metrics["cell_type_pq_scores"]
+        )
+        tissue_pred.append(batch_metrics["tissue_pred"])
+        tissue_gt.append(batch_metrics["tissue_gt"])
+
+    tissue_types_val = [
+        reverse_tissue_types[t].lower() for t in np.concatenate(tissue_gt)
+    ]
+
+    # calculate global metrics
+    binary_dice_scores = np.array(binary_dice_scores)
+    binary_jaccard_scores = np.array(binary_jaccard_scores)
+    pq_scores = np.array(pq_scores)
+    tissue_detection_accuracy = accuracy_score(
+        y_true=np.concatenate(tissue_gt), y_pred=np.concatenate(tissue_pred)
+    )
+
+    scalar_metrics = {
+        "Binary-Cell-Dice-Mean/Validation": np.nanmean(binary_dice_scores),
+        "Binary-Cell-Jacard-Mean/Validation": np.nanmean(binary_jaccard_scores),
+        "Tissue-Multiclass-Accuracy/Validation": tissue_detection_accuracy,
+        "bPQ/Validation": np.nanmean(pq_scores),
+        "mPQ/Validation": np.nanmean(
+            [np.nanmean(pq) for pq in cell_type_pq_scores]
+        ),
+    }
+
+    for tissue in tissue_types.keys():
+        tissue = tissue.lower()
+        tissue_ids = np.where(np.asarray(tissue_types_val) == tissue)
+        scalar_metrics[f"{tissue}-Dice/Validation"] = np.nanmean(
+            binary_dice_scores[tissue_ids]
+        )
+        scalar_metrics[f"{tissue}-Jaccard/Validation"] = np.nanmean(
+            binary_jaccard_scores[tissue_ids]
+        )
+        scalar_metrics[f"{tissue}-bPQ/Validation"] = np.nanmean(
+            pq_scores[tissue_ids]
+        )
+        scalar_metrics[f"{tissue}-mPQ/Validation"] = np.nanmean(
+            [np.nanmean(pq) for pq in np.array(cell_type_pq_scores)[tissue_ids]]
+        )
+        # calculate nuclei metrics
+    for nuc_name, nuc_type in nuclei_types.items():
+        if nuc_name.lower() == "background":
+            continue
+        scalar_metrics[f"{nuc_name}-PQ/Validation"] = np.nanmean(
+            [pq[nuc_type] for pq in cell_type_pq_scores]
+        )
+
+
+    # gather the stats from all processes
+    print("Scalar validation metrics")
+    print("-----------------------")
+    for key, value in scalar_metrics.items():
+        print(f"{key}\t\t{value:.2f}")
+

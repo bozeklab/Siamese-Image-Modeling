@@ -224,6 +224,7 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     # load model
     return model
 
+
 def main(args):
     misc.init_distributed_mode(args)
 
@@ -407,11 +408,10 @@ def main(args):
     # start training
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
-    max_accuracy = 0.0
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
-        train_stats = train_unetr_one_epoch(
+        train_unetr_one_epoch(
             model, data_loader_train,
             optimizer, device, epoch, loss_scaler, num_nuclei_classes,
             loss_setting, args.clip_grad, log_writer=log_writer, args=args)
@@ -422,21 +422,10 @@ def main(args):
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch, latest=True)
 
-        if (epoch + 1) % 10 == 0:
-            test_stats = evaluate(data_loader_val, model, device)
-            print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
-            max_accuracy = max(max_accuracy, test_stats["acc1"])
-            print(f'Max accuracy: {max_accuracy:.2f}%')
-
-            if log_writer is not None:
-                log_writer.add_scalar('perf/test_acc1', test_stats['acc1'], epoch)
-                log_writer.add_scalar('perf/test_acc5', test_stats['acc5'], epoch)
-                log_writer.add_scalar('perf/test_loss', test_stats['loss'], epoch)
-
-            log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                         **{f'test_{k}': v for k, v in test_stats.items()},
-                         'epoch': epoch,
-                         'n_parameters': n_parameters}
+        if (epoch + 1) % 3 == 0:
+            unetr_evaluate(data_loader, model, num_nuclei_classes,
+                           PanNukeDataset.tissue_types, PanNukeDataset.nuclei_types,
+                           PanNukeDataset.reverse_tissue_types, device)
 
             if args.output_dir and misc.is_main_process():
                 if log_writer is not None:

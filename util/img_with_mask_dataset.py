@@ -127,6 +127,8 @@ class PanNukeDataset(ImagesWithSegmentationMaps):
                     "Pancreatic": 12, "Prostate": 13, "Skin": 14, "Stomach": 15, "Testis": 16, "Thyroid": 17,
                     "Uterus": 18}
 
+    reverse_tissue_types = {value: key for key, value in tissue_types.items()}
+
     nuclei_types = {"Background": 0, "Neoplastic": 1, "Inflammatory": 2, "Connective": 3, "Dead": 4, "Epithelial": 5}
 
     def __len__(self):
