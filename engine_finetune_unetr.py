@@ -15,14 +15,18 @@ import sys
 from typing import Iterable, Optional
 
 import torch
+from sklearn.metrics import accuracy_score
 
 from timm.data import Mixup
 from timm.utils import accuracy
 from collections import OrderedDict
 import torch.nn.functional as F
+from torchmetrics.functional import dice
+from torchmetrics.functional.classification import binary_jaccard_index
 
 import util.misc as misc
 import util.lr_sched as lr_sched
+import numpy as np
 from models_unetr_vit import CellViT
 from util.img_with_mask_dataset import PanNukeDataset
 from util.post_proc import calculate_instance_map, generate_instance_nuclei_map
@@ -187,6 +191,92 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_dict, device):
     return total_loss, outputs
 
 
+def calculate_step_metric_train(predictions: dict, gt: dict) -> dict:
+    """Calculate the metrics for the training step
+
+    Args:
+        predictions (OrderedDict): OrderedDict: Processed network output. Keys are:
+            * nuclei_binary_map: Softmax output for binary nuclei prediction branch. Shape: (batch_size, H, W, 2)
+            * hv_map: Logit output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: Softmax output for hv-prediction. Shape: (batch_size, H, W, 2)
+            * tissue_types: Logit tissue prediction output. Shape: (batch_size, num_tissue_classes)
+            * instance_map: Pixel-wise nuclear instance segmentation predictions. Shape: (batch_size, H, W)
+            * instance_types: Dictionary, Pixel-wise nuclei type predictions
+            * instance_types_nuclei: Pixel-wsie nuclear instance segmentation predictions, for each nuclei type. Shape: (batch_size, H, W, num_nuclei_classes)
+        gt (dict): Ground truth values, with keys:
+            * instance_map: Pixel-wise nuclear instance segmentations. Shape: (batch_size, H, W) -> each instance has one integer
+            * nuclei_binary_map: One-Hot encoded binary map. Shape: (batch_size, H, W, 2)
+            * hv_map: HV-map. Shape: (batch_size, H, W, 2)
+            * nuclei_type_map: One-hot encoded nuclei type maps Shape: (batch_size, H, W, num_nuclei_classes)
+            * instance_types_nuclei: Shape: (batch_size, H, W, num_nuclei_classes) -> instance has one integer, for each nuclei class
+            * tissue_types: Tissue types, as torch.Tensor with integer values. Shape: batch_size
+
+    Returns:
+        dict: Dictionary with metrics. Structure not fixed yet
+    """
+    # preparation and device movement
+    predictions["tissue_types_classes"] = F.softmax(
+        predictions["tissue_types"], dim=-1
+    )
+    pred_tissue = (
+        torch.argmax(predictions["tissue_types_classes"], dim=-1)
+        .detach()
+        .cpu()
+        .numpy()
+        .astype(np.uint8)
+    )
+    predictions["instance_map"] = predictions["instance_map"].detach().cpu()
+    predictions["instance_types_nuclei"] = (
+        predictions["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
+    )
+    gt["tissue_types"] = gt["tissue_types"].detach().cpu().numpy().astype(np.uint8)
+    gt["nuclei_binary_map"] = torch.argmax(gt["nuclei_binary_map"], dim=-1).type(
+        torch.uint8
+    )
+    gt["instance_types_nuclei"] = (
+        gt["instance_types_nuclei"].detach().cpu().numpy().astype("int32")
+    )
+
+    tissue_detection_accuracy = accuracy_score(
+        y_true=gt["tissue_types"], y_pred=pred_tissue
+    )
+
+    binary_dice_scores = []
+    binary_jaccard_scores = []
+
+    for i in range(len(pred_tissue)):
+        # binary dice score: Score for cell detection per image, without background
+        pred_binary_map = torch.argmax(predictions["nuclei_binary_map"][i], dim=-1)
+        target_binary_map = gt["nuclei_binary_map"][i]
+        cell_dice = (
+            dice(preds=pred_binary_map, target=target_binary_map, ignore_index=0)
+            .detach()
+            .cpu()
+        )
+        binary_dice_scores.append(float(cell_dice))
+
+        # binary aji
+        cell_jaccard = (
+            binary_jaccard_index(
+                preds=pred_binary_map,
+                target=target_binary_map,
+            )
+            .detach()
+            .cpu()
+        )
+        binary_jaccard_scores.append(float(cell_jaccard))
+
+    batch_metrics = {
+        "tissue_detection_accuracy": tissue_detection_accuracy,
+        "binary_dice_scores": binary_dice_scores,
+        "binary_jaccard_scores": binary_jaccard_scores,
+        "tissue_pred": pred_tissue,
+        "tissue_gt": gt["tissue_types"],
+    }
+
+    return batch_metrics
+
+
 def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
                           data_loader: Iterable, optimizer: torch.optim.Optimizer,
                           device: torch.device, epoch: int, loss_scaler, num_nuclei_classes,
@@ -224,6 +314,8 @@ def train_unetr_one_epoch(model: torch.nn.Module, loss_fn: torch.nn.Module,
             metric_logger.update(**outputs)
 
         loss_value = loss.item()
+        batch_metrics = calculate_step_metric_train(predictions, gt)
+        print(batch_metrics)
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
