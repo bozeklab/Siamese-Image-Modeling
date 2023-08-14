@@ -594,5 +594,5 @@ def unetr_evaluate(data_loader, model, num_nuclei_classes,
     print("Scalar validation metrics")
     print("-----------------------")
     for key, value in scalar_metrics.items():
-        print(f"{key}\t\t{value:.2f}")
+        print(f"{key}\t\t\t{value:.2f}")
 
