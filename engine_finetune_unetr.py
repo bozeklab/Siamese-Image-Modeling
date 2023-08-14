@@ -163,6 +163,7 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
 
     print('!!!')
     print(loss_setting.keys())
+    print()
 
     for branch, pred in predictions.items():
         if branch in [
@@ -172,6 +173,7 @@ def calculate_loss(predictions: OrderedDict, gt: dict, loss_setting, device):
         ]:  # TODO: rather select branch from loss functions?
             continue
         branch_loss_fns = loss_setting[branch]
+        print(branch_loss_fns)
         for loss_name, loss_setting in branch_loss_fns.items():
             loss_fn = loss_setting["loss_fn"]
             weight = loss_setting["weight"]
