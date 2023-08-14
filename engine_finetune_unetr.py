@@ -325,6 +325,8 @@ def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimiz
         binary_jaccard_scores = (
                 binary_jaccard_scores + batch_metrics["binary_jaccard_scores"]
         )
+        tissue_pred.append(batch_metrics["tissue_pred"])
+        tissue_gt.append(batch_metrics["tissue_gt"])
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
