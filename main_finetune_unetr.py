@@ -424,7 +424,7 @@ def main(args):
                 loss_scaler=loss_scaler, epoch=epoch, latest=True)
 
         if (epoch + 1) % 1 == 0:
-            unetr_evaluate(data_loader, model, num_nuclei_classes,
+            unetr_evaluate(data_loader_val, model, num_nuclei_classes,
                            PanNukeDataset.tissue_types, PanNukeDataset.nuclei_types,
                            PanNukeDataset.reverse_tissue_types, device)
 
