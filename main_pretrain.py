@@ -224,33 +224,57 @@ class DataAugmentationForImagesWithMaps(object):
         self.args = args
         self.to_tensor = transforms.ToTensor()
         self.train = train
-        self.hflip = RandomHorizontalFlipForMaps(self.train)
+        if self.train:
+            crop_p = [0.08, 0.16, 0.32]
+
+            crop = iaa.KeepSizeByResize(iaa.Crop(percent=(crop_p, crop_p, crop_p, crop_p),
+                                                 keep_size=False),
+                                        interpolation=["nearest", "cubic"],
+                                        interpolation_heatmaps=iaa.KeepSizeByResize.SAME_AS_IMAGES,
+                                        interpolation_segmaps=iaa.KeepSizeByResize.NO_RESIZE)
+            self.seq = iaa.Sequential([iaa.Fliplr(0.5),
+                                       iaa.GaussianBlur(sigma=(.1, 2.)),
+                                       iaa.Grayscale(alpha=(0.0, 1.0)),
+                                       #iaa.Solarize(0.3, threshold=(32, 128)),
+                                       crop
+                                       ])
+
+        else:
+            self.seq = iaa.Fliplr(0.0)
 
     def __call__(self, image, type_map, inst_map):
-        image = resize(image, (self.args.input_size, self.args.input_size))
-        image = (image * 255.0).astype(np.uint8)
-
         type_map = type_map.astype(np.uint8)
         inst_map = inst_map.astype(np.uint8)
 
-        tmap = SegmentationMapsOnImage(type_map, shape=image.shape)
-        tmap = tmap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
-
-        imap = SegmentationMapsOnImage(inst_map, shape=image.shape)
-        imap = imap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
-
         orig_img = image.copy()
 
-        img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
-        im = imap_aug.get_arr()
+        mask = np.stack([type_map, inst_map], axis=-1)
+        mask = np.expand_dims(mask, 0)
+        image_aug, mask_aug = self.seq(image=image, segmentation_maps=mask)
+
+        mask_aug = np.squeeze(mask_aug)
+
+        tmap = mask_aug[:, :, 0]
+        imap = mask_aug[:, :, 1]
+
+        image_aug = resize(image_aug, (self.args.input_size, self.args.input_size))
+        image_aug = (image_aug * 255.0).astype(np.uint8)
+
+        tmap = SegmentationMapsOnImage(tmap, shape=image_aug.shape)
+        tmap = tmap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
+
+        imap = SegmentationMapsOnImage(imap, shape=image_aug.shape)
+        imap = imap.resize(sizes=(self.args.input_size, self.args.input_size), interpolation="nearest")
+
+        im = imap.get_arr()
 
         np_map = im.copy()
         np_map[np_map > 0] = 1
 
         return {
             'x0': self.to_tensor(orig_img),
-            'x': self.to_tensor(img_aug),
-            'nuclei_type_map': torch.tensor(tmap_aug.get_arr()),
+            'x': self.to_tensor(image_aug),
+            'nuclei_type_map': torch.tensor(tmap.get_arr()),
             'instance_map': torch.tensor(im),
             'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
             'nuclei_binary_map': torch.tensor(np_map, dtype=torch.int64)
@@ -259,7 +283,7 @@ class DataAugmentationForImagesWithMaps(object):
     def __repr__(self):
         repr = "(DataPreprocessing,\n"
         if self.train:
-            repr += "  transform = %s,\n" % str(self.hflip)
+            repr += "  transform = %s,\n" % str(self.seq)
         repr += ")"
         return repr
 
