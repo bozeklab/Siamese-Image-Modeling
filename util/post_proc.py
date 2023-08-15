@@ -89,7 +89,7 @@ class DetectionCellPostProcessor:
             )
             # * opencv protocol format may break
             inst_contour = np.squeeze(inst_contour[0][0].astype("int32"))
-            # < 3 points dont make a contour, so skip, likely artifact too
+            # < 3 points don't make a contour, so skip, likely artifact too
             # as the contours obtained via approximation => too small or sthg
             if inst_contour.shape[0] < 3:
                 continue

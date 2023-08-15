@@ -222,6 +222,8 @@ def prepare_model(chkpt_dir_vit, **kwargs):
                                   drop_rate=drop_rate,
                                   encoder=vit_encoder)
 
+    model.freeze_encoder()
+
     # load model
     return model
 

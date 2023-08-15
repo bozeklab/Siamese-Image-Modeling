@@ -463,7 +463,7 @@ class CellViT(nn.Module):
     def freeze_encoder(self):
         """Freeze encoder to not train it"""
         for layer_name, p in self.encoder.named_parameters():
-            if layer_name.split(".")[0] != "head":  # do not freeze head
+            if layer_name.split(".")[0] not in ["head", "fc_norm"]:  # do not freeze head
                 p.requires_grad = False
 
     def unfreeze_encoder(self):
@@ -533,9 +533,9 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
                 outcome = hidden_states
 
         outcome = self.fc_norm(outcome)
-        outcome = self.head(outcome[:, 0])
+        output = self.head(outcome[:, 0])
 
-        return outcome, outcome[:, 0], extract_layers
+        return output, outcome[:, 0], extract_layers
 
 
 def cell_vit_base_patch16(num_nuclei_classes, embed_dim, extract_layers, drop_rate, encoder):
