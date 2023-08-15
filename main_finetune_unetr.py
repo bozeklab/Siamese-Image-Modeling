@@ -426,7 +426,7 @@ def main(args):
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch, latest=True)
 
-        if (epoch + 1) % 5 == 0:
+        if (epoch + 1) % 10 == 0:
             unetr_evaluate(data_loader_val, model, num_nuclei_classes,
                            PanNukeDataset.tissue_types, PanNukeDataset.nuclei_types,
                            PanNukeDataset.reverse_tissue_types, device)
