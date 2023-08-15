@@ -237,7 +237,7 @@ class DataAugmentationForImagesWithMaps(object):
                                        iaa.Grayscale(alpha=(0.0, 1.0)),
                                        #iaa.Solarize(0.3, threshold=(32, 128)),
                                        crop
-                                       ])
+                                       ], random_order=True)
 
         else:
             self.seq = iaa.Fliplr(0.0)
