@@ -64,7 +64,7 @@ def get_args_parser():
 
     parser.add_argument('--extract_layers', default=[3, 6, 9, 12], type=list)
 
-    parser.add_argument('--input_size', default=224, type=int,
+    parser.add_argument('--input_size', default=352, type=int,
                         help='images input size')
 
     parser.add_argument('--drop_path', type=float, default=0.1, metavar='PCT',
