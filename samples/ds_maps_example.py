@@ -26,7 +26,7 @@ args = Config(data_path='/Users/piotrwojcik/data/pannuke/fold1', input_size=352,
 
 
 if __name__ == '__main__':
-    transform_mask = DataAugmentationForImagesWithMaps(args)
+    transform_mask = DataAugmentationForImagesWithMaps(True, args)
 
     print(f'Segmentation data transform:\n{transform_mask}')
 

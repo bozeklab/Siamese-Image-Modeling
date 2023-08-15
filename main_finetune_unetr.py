@@ -244,8 +244,8 @@ def main(args):
     torch.backends.cudnn.allow_tf32 = False
 
     # build dataset
-    transform_train = DataAugmentationForImagesWithMaps(args)
-    transform_val = DataAugmentationForImagesWithMaps(args)
+    transform_train = DataAugmentationForImagesWithMaps(True, args)
+    transform_val = DataAugmentationForImagesWithMaps(False, args)
     if not args.use_tcs_dataset:
         dataset_train = PanNukeDataset(os.path.join(args.data_path), transform=transform_train)
         dataset_val = PanNukeDataset(os.path.join(args.eval_data_path), transform=transform_val)

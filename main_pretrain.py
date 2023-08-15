@@ -220,10 +220,12 @@ class DataPreprocessingForSIM(object):
 
 
 class DataAugmentationForImagesWithMaps(object):
-    def __init__(self, args):
+    def __init__(self, train, args):
         self.args = args
         self.to_tensor = transforms.ToTensor()
-        self.hflip = RandomHorizontalFlipForMaps()
+        self.train = train
+        if train:
+            self.hflip = RandomHorizontalFlipForMaps()
 
     def __call__(self, image, type_map, inst_map):
         image = resize(image, (self.args.input_size, self.args.input_size))
@@ -240,10 +242,15 @@ class DataAugmentationForImagesWithMaps(object):
 
         orig_img = image.copy()
 
-        img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
-        im = imap_aug.get_arr()
+        if self.train:
+            img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
+            im = imap_aug.get_arr()
+        else:
+            img_aug = image
+            im = imap.get_arr()
+            tmap_aug = tmap
 
-        np_map = im.copy()
+        np_map = img_aug.copy()
         np_map[np_map > 0] = 1
 
         return {
@@ -257,7 +264,8 @@ class DataAugmentationForImagesWithMaps(object):
 
     def __repr__(self):
         repr = "(DataPreprocessing,\n"
-        repr += "  transform = %s,\n" % str(self.hflip)
+        if self.train:
+            repr += "  transform = %s,\n" % str(self.hflip)
         repr += ")"
         return repr
 
