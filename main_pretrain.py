@@ -226,6 +226,8 @@ class DataAugmentationForImagesWithMaps(object):
         self.train = train
         self.hflip = RandomHorizontalFlipForMaps(self.train)
 
+        self.aug = iaa.Fliplr(1.0)
+
     def __call__(self, image, type_map, inst_map):
         image = resize(image, (self.args.input_size, self.args.input_size))
         image = (image * 255.0).astype(np.uint8)
@@ -241,18 +243,26 @@ class DataAugmentationForImagesWithMaps(object):
 
         orig_img = image.copy()
 
-        img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
-        im = imap_aug.get_arr()
+        mask = np.stack([tmap, imap], axis=-1)
 
-        np_map = im.copy()
+        mask = np.expand_dims(mask, axis=0)
+
+        img_aug, mask_aug = self.aug(image=image, segmentation_maps=mask)
+
+        mask_aug = np.squeeze(mask_aug)
+
+        tmap_aug = mask_aug[:, :, 0]
+        imap_aug = mask_aug[:, :, 1]
+
+        np_map = imap_aug.copy()
         np_map[np_map > 0] = 1
 
         return {
             'x0': self.to_tensor(orig_img),
             'x': self.to_tensor(img_aug),
-            'nuclei_type_map': torch.tensor(tmap_aug.get_arr()),
-            'instance_map': torch.tensor(im),
-            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
+            'nuclei_type_map': torch.tensor(tmap_aug),
+            'instance_map': torch.tensor(imap_aug),
+            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(imap_aug)),
             'nuclei_binary_map': torch.tensor(np_map, dtype=torch.int64)
         }
 
