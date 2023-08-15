@@ -211,8 +211,15 @@ class Resize(transforms.Resize):
 
 class RandomHorizontalFlipForMaps(transforms.RandomHorizontalFlip):
     """Wrapper around imgaug flip for multiple masks"""
+    def __init__(self, train=True):
+        super().__init__()
 
-    aug = iaa.Fliplr(1.0)
+        if train:
+            p = 1.0
+        else:
+            p = 0.0
+
+        self.aug = iaa.Fliplr(p)
 
     def forward(self, img, type_map, inst_map):
         if torch.rand(1) < self.p:
