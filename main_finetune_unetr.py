@@ -222,7 +222,7 @@ def prepare_model(chkpt_dir_vit, **kwargs):
                                   drop_rate=drop_rate,
                                   encoder=vit_encoder)
 
-    model.freeze_encoder()
+    model.unfreeze_encoder()
 
     # load model
     return model
@@ -412,6 +412,7 @@ def main(args):
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
+
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
         train_unetr_one_epoch(

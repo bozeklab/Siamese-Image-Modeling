@@ -136,7 +136,7 @@ def get_args_parser():
     parser.add_argument('--use_pred_ln', default=False, action='store_true')
     parser.add_argument('--train_patch_embed', default=False, action='store_true')
     parser.add_argument('--online_ln', default=False, action='store_true', help='also use frozen LN in online branch')
-    
+
     parser.add_argument('--loss_type', default='mae')
     parser.add_argument('--neg_weight', default=0.02, type=float)
 
@@ -146,8 +146,8 @@ def get_args_parser():
     # hyper-parameter
     parser.add_argument('--mm', default=0.996, type=float)
     parser.add_argument('--mmschedule', default='const')
-    parser.add_argument('--lambda_F', default=50, type=float) # may no need
-    parser.add_argument('--T', default=0.2, type=float)       # check
+    parser.add_argument('--lambda_F', default=50, type=float)  # may no need
+    parser.add_argument('--T', default=0.2, type=float)  # check
     parser.add_argument('--clip_grad', default=None, type=float)
     parser.add_argument('--beta2', default=0.95, type=float)
 
@@ -226,8 +226,6 @@ class DataAugmentationForImagesWithMaps(object):
         self.train = train
         self.hflip = RandomHorizontalFlipForMaps(self.train)
 
-        self.aug = iaa.Fliplr(1.0)
-
     def __call__(self, image, type_map, inst_map):
         image = resize(image, (self.args.input_size, self.args.input_size))
         image = (image * 255.0).astype(np.uint8)
@@ -243,26 +241,18 @@ class DataAugmentationForImagesWithMaps(object):
 
         orig_img = image.copy()
 
-        mask = np.stack([tmap, imap], axis=-1)
+        img_aug, tmap_aug, imap_aug = self.hflip(image, tmap, imap)
+        im = imap_aug.get_arr()
 
-        mask = np.expand_dims(mask, axis=0)
-
-        img_aug, mask_aug = self.aug(image=image, segmentation_maps=mask)
-
-        mask_aug = np.squeeze(mask_aug)
-
-        tmap_aug = mask_aug[:, :, 0]
-        imap_aug = mask_aug[:, :, 1]
-
-        np_map = imap_aug.copy()
+        np_map = im.copy()
         np_map[np_map > 0] = 1
 
         return {
             'x0': self.to_tensor(orig_img),
             'x': self.to_tensor(img_aug),
-            'nuclei_type_map': torch.tensor(tmap_aug),
-            'instance_map': torch.tensor(imap_aug),
-            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(imap_aug)),
+            'nuclei_type_map': torch.tensor(tmap_aug.get_arr()),
+            'instance_map': torch.tensor(im),
+            'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
             'nuclei_binary_map': torch.tensor(np_map, dtype=torch.int64)
         }
 
@@ -327,12 +317,12 @@ class DataAugmentationForSIM(object):
             'w2': w2,
             'flip1': flip1,
             'flip2': flip2,
-            'delta_i': (i2-i1)/h1,
-            'delta_j': (j2-j1)/w1,
-            'delta_h': h2/h1,
-            'delta_w': w2/w1,
+            'delta_i': (i2 - i1) / h1,
+            'delta_j': (j2 - j1) / w1,
+            'delta_h': h2 / h1,
+            'delta_w': w2 / w1,
             'relative_flip': relative_flip,
-            'flip_delta_j': (W-j1-j2)/w1,
+            'flip_delta_j': (W - j1 - j2) / w1,
             'boxes0': boxes0,
             'boxes1': boxes1,
             'boxes2': boxes2
@@ -347,7 +337,7 @@ class DataAugmentationForSIM(object):
 
 
 def main(args):
-    misc.init_distributed_mode(args) # need change to torch.engine
+    misc.init_distributed_mode(args)  # need change to torch.engine
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
     print("{}".format(args).replace(', ', ',\n'))
@@ -360,7 +350,7 @@ def main(args):
     np.random.seed(seed)
 
     cudnn.benchmark = True
-    
+
     # disable tf32
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
@@ -370,28 +360,28 @@ def main(args):
         transform_train = DataAugmentationForSIM(args)
     else:
         transform_train = transforms.Compose([
-                transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+            transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     if not args.use_tcs_dataset:
-        #dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
+        # dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
         dataset_train = ImagenetWithMask(os.path.join(args.data_path),
                                          input_size=args.input_size,
                                          transform=transform_train,
                                          with_blockwise_mask=args.with_blockwise_mask,
                                          blockwise_num_masking_patches=args.blockwise_num_masking_patches)
-    else: # for internal use only
+    else:  # for internal use only
         from util.tcs_datasets import ImagenetTCSDataset
         dataset_train = ImagenetTCSDataset('train',
-                                        's3://imagenet',
-                                        use_tcs=True,
-                                        transform=transform_train,
-                                        with_blockwise_mask=args.with_blockwise_mask,
-                                        blockwise_num_masking_patches=args.blockwise_num_masking_patches,
-                                        local_rank=int(os.environ['LOCAL_RANK']),
-                                        local_size=int(os.environ['LOCAL_SIZE']),
-                                        tcs_conf_path='./petreloss.conf')
+                                           's3://imagenet',
+                                           use_tcs=True,
+                                           transform=transform_train,
+                                           with_blockwise_mask=args.with_blockwise_mask,
+                                           blockwise_num_masking_patches=args.blockwise_num_masking_patches,
+                                           local_rank=int(os.environ['LOCAL_RANK']),
+                                           local_size=int(os.environ['LOCAL_SIZE']),
+                                           tcs_conf_path='./petreloss.conf')
     print(dataset_train)
 
     # build dataloader
@@ -419,7 +409,6 @@ def main(args):
         drop_last=True,
     )
 
-    
     # build model
     model = models_sim.__dict__[args.model](norm_pix_loss=args.norm_pix_loss, args=args)
     model.to(device)
@@ -441,7 +430,7 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
         model_without_ddp = model.module
     print("Model = %s" % str(model_without_ddp))
-    
+
     # build optimizer
     # following timm: set wd as 0 for bias and norm layers
     param_groups = param_groups_weight_decay(model_without_ddp, args.weight_decay)
@@ -468,18 +457,18 @@ def main(args):
         dist.barrier()
 
         # save ckpt
-        if args.output_dir and ((epoch+1) % args.save_freq == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and ((epoch + 1) % args.save_freq == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
-        if (epoch+1) % args.save_latest_freq == 0:
+        if (epoch + 1) % args.save_latest_freq == 0:
             misc.save_model(
-                    args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                    loss_scaler=loss_scaler, epoch=epoch, latest=True)
+                args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
+                loss_scaler=loss_scaler, epoch=epoch, latest=True)
 
         # log information
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                        'epoch': epoch,}
+                     'epoch': epoch, }
 
         if args.output_dir and misc.is_main_process():
             if log_writer is not None:
@@ -489,9 +478,9 @@ def main(args):
         if misc.is_main_process():
             epoch_total_time = time.time() - epoch_start_time
             now = datetime.datetime.today()
-            eta = now + datetime.timedelta(seconds=(args.epochs-epoch-1)*int(epoch_total_time))
+            eta = now + datetime.timedelta(seconds=(args.epochs - epoch - 1) * int(epoch_total_time))
             next_50_ep = ((epoch + 1) // 50 + 1) * 50
-            eta_to_next_50 =now + datetime.timedelta(seconds=(next_50_ep - epoch - 1) * int(epoch_total_time))
+            eta_to_next_50 = now + datetime.timedelta(seconds=(next_50_ep - epoch - 1) * int(epoch_total_time))
             print(f"ETA to {args.epochs:4d}ep:\t{str(eta)}")
             print(f"ETA to {next_50_ep:4d}ep:\t{str(eta_to_next_50)}")
         dist.barrier()
