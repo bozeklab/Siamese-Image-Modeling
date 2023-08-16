@@ -240,7 +240,7 @@ class DataAugmentationForImagesWithMaps(object):
                                        ], random_order=True)
 
         else:
-            self.seq = iaa.Fliplr(0.0)
+            self.seq = iaa.Sequential([iaa.Fliplr(0.0)])
 
     def __call__(self, image, type_map, inst_map):
         type_map = type_map.astype(np.uint8)
@@ -282,8 +282,7 @@ class DataAugmentationForImagesWithMaps(object):
 
     def __repr__(self):
         repr = "(DataPreprocessing,\n"
-        if self.train:
-            repr += "  transform = %s,\n" % str(self.seq)
+        repr += "  transform = %s,\n" % str(self.seq)
         repr += ")"
         return repr
 

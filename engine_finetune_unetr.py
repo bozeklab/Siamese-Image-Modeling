@@ -499,7 +499,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimiz
     print("Scalar metrics for epoch [{}]".format(epoch))
     print("-----------------------")
     for key, value in scalar_metrics.items():
-        print(f"{key}\t\t{value:.2f}")
+        print(f"{key}\t\t{value:.4f}")
 
     print("Averaged stats:", metric_logger)
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
