@@ -386,7 +386,7 @@ def main(args):
     param_groups = param_groups_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, args.beta2))
 
-    model.freeze_encoder()
+    model.unfreeze_encoder()
 
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
