@@ -335,7 +335,7 @@ def main(args):
                           embed_dim=args.embed_dim,
                           extract_layers=args.extract_layers)
 
-
+    model.freeze_encoder()
 
     # load ckpt
     # if args.finetune and not args.eval:
@@ -425,6 +425,9 @@ def main(args):
             model, data_loader_train,
             optimizer, device, epoch, loss_scaler, num_nuclei_classes,
             loss_setting, args.clip_grad, log_writer=log_writer, args=args)
+
+        if epoch + 1 == 90:
+            model.unfreeze_encoder()
 
         if (epoch + 1) % 10 == 0:
         # save model
