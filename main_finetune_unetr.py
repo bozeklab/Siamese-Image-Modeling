@@ -181,8 +181,8 @@ def prepare_loss_fn():
     loss_fn_dict = {}
 
     loss_fn_dict["nuclei_binary_map"] = {
-        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1.0},
-        "ft": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 1.0},
+        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1},
+        "ft": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 1},
     }
 
     loss_fn_dict["hv_map"] = {
@@ -191,15 +191,14 @@ def prepare_loss_fn():
     }
 
     loss_fn_dict["nuclei_type_map"] = {
-        "ft": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 0.5},
         "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 0.5},
+        "ft": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 0.5},
         "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 0.2},
     }
 
     loss_fn_dict["tissue_types"] = {
-        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 0.1},
+        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 0.1}
     }
-
     return loss_fn_dict
 
 
