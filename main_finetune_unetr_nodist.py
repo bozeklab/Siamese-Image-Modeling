@@ -426,8 +426,8 @@ def main(args):
             optimizer, device, epoch, loss_scaler, num_nuclei_classes,
             loss_setting, args.clip_grad, log_writer=log_writer, args=args)
 
-        #if epoch + 1 == 90:
-        #    model.unfreeze_encoder()
+        if epoch + 1 >= 70:
+            model.unfreeze_encoder()
 
         if (epoch + 1) % 10 == 0:
         # save model
