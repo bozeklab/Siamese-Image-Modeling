@@ -192,7 +192,7 @@ def prepare_loss_fn():
 
     loss_fn_dict["nuclei_type_map"] = {
         "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 0.5},
-        "ft": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 0.5},
+        "ft": {"loss_fn": retrieve_loss_fn("MCFocalTverskyLoss"), "weight": 0.5},
         "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 0.2},
     }
 
