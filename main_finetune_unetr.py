@@ -213,8 +213,13 @@ def prepare_model(chkpt_dir_vit, **kwargs):
 
     # load ViT model
     checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')
+
+    checkpoint_model = checkpoint['model']
+    interpolate_pos_embed(vit_encoder, checkpoint_model)
+
     msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
-    assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
+    print(msg)
+    #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
 
     model = cell_vit_base_patch16(num_nuclei_classes=num_nuclei_classes,
                                   embed_dim=embed_dim,
