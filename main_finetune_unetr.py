@@ -382,13 +382,16 @@ def main(args):
     print("accumulate grad iterations: %d" % args.accum_iter)
     print("effective batch size: %d" % eff_batch_size)
 
+    # build optimizer with layer-wise lr decay (lrd)
+    param_groups = param_groups_weight_decay(model_without_ddp, args.weight_decay)
+    optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, args.beta2))
+
+    model.freeze_encoder()
+
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-    # build optimizer with layer-wise lr decay (lrd)
-    param_groups = param_groups_weight_decay(model_without_ddp, args.weight_decay)
-    optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, args.beta2))
 
     loss_scaler = NativeScaler()
 
