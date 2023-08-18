@@ -220,7 +220,7 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     #checkpoint_model = checkpoint['model']
     interpolate_pos_embed(vit_encoder, checkpoint_model)
 
-    msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
+    msg = vit_encoder.load_state_dict(checkpoint, strict=False)
     print(msg)
     #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
 
