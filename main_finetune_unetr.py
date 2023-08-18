@@ -28,7 +28,7 @@ import torchvision.datasets as datasets
 import timm
 
 from main_pretrain import DataAugmentationForImagesWithMaps
-from models_unetr_vit import unetr_vit_base_patch16, cell_vit_base_patch16
+from models_unetr_vit import unetr_vit_base_patch16, cell_vit_base_patch16, unetr_vit_small_base_patch16
 from util.base_loss import retrieve_loss_fn
 from util.img_with_mask_dataset import PanNukeDataset
 
@@ -212,7 +212,7 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     drop_rate = kwargs['drop_path_rate']
 
     #vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
-    vit_encoder = models_vit.vit_small_base_patch16(num_classes=num_tissue_classes, **kwargs)
+    vit_encoder = unetr_vit_small_base_patch16(num_classes=num_tissue_classes, **kwargs)
     checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')['teacher']
     checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
 

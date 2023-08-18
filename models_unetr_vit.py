@@ -548,6 +548,13 @@ def cell_vit_base_patch16(num_nuclei_classes, embed_dim, extract_layers, drop_ra
     return model
 
 
+def unetr_vit_small_base_patch16(**kwargs):
+    model = VisionTransformer(
+        img_size=256, extract_layers=[3, 6, 9, 12], patch_size=16, embed_dim=384, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
+        norm_layer=partial(LayerNorm, eps=1e-6), **kwargs)
+    return model
+
+
 def unetr_vit_base_patch16(**kwargs):
     model = VisionTransformer(
         img_size=256, extract_layers=[3, 6, 9, 12], patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
