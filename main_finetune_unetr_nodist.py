@@ -181,21 +181,23 @@ def prepare_loss_fn():
     loss_fn_dict = {}
 
     loss_fn_dict["nuclei_binary_map"] = {
-        "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 1},
-        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1},}
+        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1.0},
+        "focaltverskyloss": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 1.0},
+    }
 
     loss_fn_dict["hv_map"] = {
-        "mse": {"loss_fn": retrieve_loss_fn("mse_loss_maps"), "weight": 1},
-        "msge": {"loss_fn": retrieve_loss_fn("msge_loss_maps"), "weight": 1},
+        "mse": {"loss_fn": retrieve_loss_fn("mse_loss_maps"), "weight": 2.5},
+        "msge": {"loss_fn": retrieve_loss_fn("msge_loss_maps"), "weight": 8.0},
     }
 
     loss_fn_dict["nuclei_type_map"] = {
-        "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 1},
-        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1},
+        "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 0.5},
+        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 0.2},
+        "mcfocaltverskyloss": {"loss_fn": retrieve_loss_fn("MCFocalTverskyLoss"), "weight": 0.5},
     }
 
     loss_fn_dict["tissue_types"] = {
-        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 1},
+        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 0.1},
     }
 
     return loss_fn_dict
@@ -426,8 +428,8 @@ def main(args):
             optimizer, device, epoch, loss_scaler, num_nuclei_classes,
             loss_setting, args.clip_grad, log_writer=log_writer, args=args)
 
-        if epoch + 1 >= 70:
-            model.unfreeze_encoder()
+        #if epoch + 1 >= 70:
+        #    model.unfreeze_encoder()
 
         if (epoch + 1) % 10 == 0:
         # save model
