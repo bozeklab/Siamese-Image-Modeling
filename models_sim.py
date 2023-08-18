@@ -217,6 +217,9 @@ class SiameseIMViT(nn.Module):
         w = self.patch_embed.proj.weight.data
         torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
 
+        w = self.box_embed.proj.weight.data
+        torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+
         # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
         if hasattr(self, 'cls_token'):
             torch.nn.init.normal_(self.cls_token, std=.02)
