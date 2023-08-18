@@ -215,11 +215,10 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     vit_encoder = unetr_vit_small_base_patch16(num_classes=num_tissue_classes, **kwargs)
     checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')['teacher']
     checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
-
     #checkpoint_model = checkpoint['model']
     interpolate_pos_embed(vit_encoder, checkpoint_model)
 
-    msg = vit_encoder.load_state_dict(checkpoint, strict=False)
+    msg = vit_encoder.load_state_dict(checkpoint_model, strict=False)
     print(msg)
     #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
 
