@@ -6,12 +6,16 @@ import numpy as np
 from tqdm import tqdm
 
 from main_pretrain import DataPreprocessingForSIM
-from models_vit import vit_base_patch16
+from models_unetr_vit import unetr_vit_small_base_patch16
+from models_vit import vit_base_patch16, vit_small_base_patch16
 from PIL import Image
 import torchvision.transforms.functional as F
 from util.img_with_pickle_dataset import ImgWithPickledBoxesAndClassesDataset
 
 import pickle
+
+from util.pos_embed import interpolate_pos_embed
+
 
 @dataclass
 class Config:
@@ -24,7 +28,7 @@ class Config:
 
 
 args = Config(data_path='/Users/piotrwojcik/data/he/positive',
-              input_size=352,
+              input_size=256,
               num_boxes=350,
               batch_size=1,
               init_values=None,
@@ -33,11 +37,20 @@ args = Config(data_path='/Users/piotrwojcik/data/he/positive',
 
 def prepare_model(chkpt_dir, **kwargs):
     # build model
-    model = vit_base_patch16(**kwargs)
+    model = unetr_vit_small_base_patch16(**kwargs)
 
     # load model
-    checkpoint = torch.load(chkpt_dir, map_location='cpu')
-    msg = model.load_state_dict(checkpoint['model'], strict=False)
+    checkpoint = torch.load(chkpt_dir, map_location='cpu')['teacher']
+
+    #print(checkpoint.keys())
+    #checkpoint_model = checkpoint['model']
+    checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
+    #checkpoint_model.pop('head.weight')
+    #checkpoint_model.pop('head.bias')
+
+    interpolate_pos_embed(model, checkpoint_model)
+
+    msg = model.load_state_dict(checkpoint_model, strict=False)
     print(msg)
     return model
 
@@ -50,7 +63,7 @@ if __name__ == '__main__':
 
     print(f'Build dataset: inference images = {len(dataset_inference)}')
 
-    model_sim = prepare_model('checkpoints/checkpoint-latest.pth',
+    model_sim = prepare_model('checkpoints/vit256_small_dino.pth',
                               init_values=args.init_values,
                               global_pool=True,
                               drop_path_rate=args.drop_path,
