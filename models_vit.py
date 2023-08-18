@@ -297,6 +297,13 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         return x if pre_logits else self.head(x)
 
 
+def vit_small_base_patch16(**kwargs):
+    model = VisionTransformer(
+        img_size=256, patch_size=16, embed_dim=384, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
+        norm_layer=partial(LayerNorm, eps=1e-6), **kwargs)
+    return model
+
+
 def vit_base_patch16(**kwargs):
     model = VisionTransformer(
         img_size=256, patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
