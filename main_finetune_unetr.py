@@ -177,27 +177,29 @@ def get_args_parser():
     return parser
 
 
-def prepare_loss_fn():
+def prepare_loss_fn(num_nuclei_classes = 2):
     loss_fn_dict = {}
 
     loss_fn_dict["nuclei_binary_map"] = {
-        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1},
-        "ft": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 1},
+        "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 1.0},
+        "focaltverskyloss": {"loss_fn": retrieve_loss_fn("FocalTverskyLoss"), "weight": 1.0},
     }
 
     loss_fn_dict["hv_map"] = {
         "mse": {"loss_fn": retrieve_loss_fn("mse_loss_maps"), "weight": 2.5},
-        "msge": {"loss_fn": retrieve_loss_fn("msge_loss_maps"), "weight": 8},
+        "msge": {"loss_fn": retrieve_loss_fn("msge_loss_maps"), "weight": 8.0},
     }
 
     loss_fn_dict["nuclei_type_map"] = {
         "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 0.5},
         "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 0.2},
+        "mcfocaltverskyloss": {"loss_fn": retrieve_loss_fn("MCFocalTverskyLoss", num_nuclei_classes=num_nuclei_classes), "weight": 0.5},
     }
 
     loss_fn_dict["tissue_types"] = {
-        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 0.1}
+        "ce": {"loss_fn": nn.CrossEntropyLoss(), "weight": 0.1},
     }
+
     return loss_fn_dict
 
 
