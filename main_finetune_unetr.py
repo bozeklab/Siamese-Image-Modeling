@@ -177,7 +177,7 @@ def get_args_parser():
     return parser
 
 
-def prepare_loss_fn(num_nuclei_classes = 2):
+def prepare_loss_fn():
     loss_fn_dict = {}
 
     loss_fn_dict["nuclei_binary_map"] = {
@@ -193,7 +193,7 @@ def prepare_loss_fn(num_nuclei_classes = 2):
     loss_fn_dict["nuclei_type_map"] = {
         "bce": {"loss_fn": retrieve_loss_fn("xentropy_loss"), "weight": 0.5},
         "dice": {"loss_fn": retrieve_loss_fn("dice_loss"), "weight": 0.2},
-        "mcfocaltverskyloss": {"loss_fn": retrieve_loss_fn("MCFocalTverskyLoss", num_nuclei_classes=num_nuclei_classes), "weight": 0.5},
+        "mcfocaltverskyloss": {"loss_fn": retrieve_loss_fn("MCFocalTverskyLoss", num_classes=6), "weight": 0.5},
     }
 
     loss_fn_dict["tissue_types"] = {
