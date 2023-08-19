@@ -211,15 +211,15 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     extract_layers = kwargs.pop('extract_layers')
     drop_rate = kwargs['drop_path_rate']
 
-    #vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
     vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
-    checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')['teacher']
-    checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
 
-    #checkpoint_model = checkpoint['model']
+    # load ViT model
+    checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')
+
+    checkpoint_model = checkpoint['model']
     interpolate_pos_embed(vit_encoder, checkpoint_model)
 
-    msg = vit_encoder.load_state_dict(checkpoint, strict=False)
+    msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
     print(msg)
     #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
 
@@ -244,7 +244,7 @@ def prepare_small_model(chkpt_dir_vit, **kwargs):
 
 
     #vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
-    vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
+    vit_encoder = unetr_vit_small_base_patch16(num_classes=num_tissue_classes, **kwargs)
     checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')['teacher']
     checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
 
