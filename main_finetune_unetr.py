@@ -360,13 +360,13 @@ def main(args):
     # build model
     num_nuclei_classes = len(PanNukeDataset.nuclei_types)
     num_tissue_classes = len(PanNukeDataset.tissue_types)
-    model = prepare_model(args.encoder_path,
-                          init_values=args.init_values,
-                          drop_path_rate=args.drop_path,
-                          num_nuclei_classes=num_nuclei_classes,
-                          num_tissue_classes=num_tissue_classes,
-                          embed_dim=args.embed_dim,
-                          extract_layers=args.extract_layers)
+    model = prepare_small_model(args.encoder_path,
+                                init_values=args.init_values,
+                                drop_path_rate=args.drop_path,
+                                num_nuclei_classes=num_nuclei_classes,
+                                num_tissue_classes=num_tissue_classes,
+                                embed_dim=args.embed_dim,
+                                extract_layers=args.extract_layers)
 
 
 
