@@ -223,6 +223,7 @@ class DataAugmentationForImagesWithMaps(object):
     def __init__(self, train, args):
         self.args = args
         self.to_tensor = transforms.ToTensor()
+        self.norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self.train = train
         if self.train:
             crop_p = [0.08, 0.16, 0.32]
@@ -273,7 +274,7 @@ class DataAugmentationForImagesWithMaps(object):
 
         return {
             'x0': self.to_tensor(orig_img),
-            'x': self.to_tensor(image_aug),
+            'x': self.norm(self.to_tensor(image_aug)),
             'nuclei_type_map': torch.tensor(tmap.get_arr()),
             'instance_map': torch.tensor(im),
             'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
