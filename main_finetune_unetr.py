@@ -203,7 +203,7 @@ def prepare_loss_fn():
     return loss_fn_dict
 
 
-def prepare_model(chkpt_dir_vit, **kwargs):
+def prepare_small_model(chkpt_dir_vit, **kwargs):
     # build ViT encoder
     num_nuclei_classes = kwargs.pop('num_nuclei_classes')
     num_tissue_classes = kwargs.pop('num_tissue_classes')
@@ -219,6 +219,38 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     interpolate_pos_embed(vit_encoder, checkpoint_model)
 
     msg = vit_encoder.load_state_dict(checkpoint_model, strict=False)
+    print(msg)
+    #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
+
+    model = cell_vit_base_patch16(num_nuclei_classes=num_nuclei_classes,
+                                  embed_dim=embed_dim,
+                                  extract_layers=extract_layers,
+                                  drop_rate=drop_rate,
+                                  encoder=vit_encoder)
+
+    #model.freeze_encoder()
+
+    # load model
+    return model
+
+def prepare_model(chkpt_dir_vit, **kwargs):
+    # build ViT encoder
+    num_nuclei_classes = kwargs.pop('num_nuclei_classes')
+    num_tissue_classes = kwargs.pop('num_tissue_classes')
+    embed_dim = kwargs.pop('embed_dim')
+    extract_layers = kwargs.pop('extract_layers')
+    drop_rate = kwargs['drop_path_rate']
+
+
+    #vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
+    vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
+    checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')['teacher']
+    checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
+
+    #checkpoint_model = checkpoint['model']
+    interpolate_pos_embed(vit_encoder, checkpoint_model)
+
+    msg = vit_encoder.load_state_dict(checkpoint, strict=False)
     print(msg)
     #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
 
