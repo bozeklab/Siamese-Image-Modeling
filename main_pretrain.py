@@ -276,7 +276,7 @@ class DataAugmentationForImagesWithMaps(object):
 
         return {
             'x0': self.to_tensor(orig_img),
-            'x': self.to_tensor(image_aug),
+            'x': self.norm(self.to_tensor(image_aug)),
             'nuclei_type_map': torch.tensor(tmap.get_arr()),
             'instance_map': torch.tensor(im),
             'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
