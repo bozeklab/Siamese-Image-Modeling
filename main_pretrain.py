@@ -234,6 +234,8 @@ class DataAugmentationForImagesWithMaps(object):
                                         interpolation_heatmaps=iaa.KeepSizeByResize.SAME_AS_IMAGES,
                                         interpolation_segmaps=iaa.KeepSizeByResize.NO_RESIZE)
             self.seq = iaa.Sequential([iaa.Fliplr(0.5),
+                                       iaa.Flipud(0.5),
+                                       iaa.Rot90([1, 3]),
                                        iaa.GaussianBlur(sigma=(.1, 2.)),
                                        iaa.Grayscale(alpha=(0.0, 1.0)),
                                        #iaa.Solarize(0.3, threshold=(32, 128)),
@@ -274,7 +276,7 @@ class DataAugmentationForImagesWithMaps(object):
 
         return {
             'x0': self.to_tensor(orig_img),
-            'x': self.norm(self.to_tensor(image_aug)),
+            'x': self.to_tensor(image_aug),
             'nuclei_type_map': torch.tensor(tmap.get_arr()),
             'instance_map': torch.tensor(im),
             'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
