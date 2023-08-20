@@ -422,7 +422,7 @@ def train_unetr_one_epoch(model: torch.nn.Module, data_loader: Iterable, optimiz
 
         # we use a per iteration (instead of per epoch) lr scheduler
         if data_iter_step % accum_iter == 0:
-            lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
+            lr_sched.adjust_exp_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
 
         x = sample['x']
         x = x.to(device, non_blocking=True)
