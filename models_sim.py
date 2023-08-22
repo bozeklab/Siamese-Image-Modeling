@@ -537,9 +537,9 @@ class SiameseIMViT(nn.Module):
         return loss
 
 
-def sim_vit_base_patch16_img256_dec512d8b(**kwargs):
+def sim_vit_base_patch16_img224_dec512d8b(**kwargs):
     model = SiameseIMViT(
-        patch_size=16, img_size=256, embed_dim=768, depth=12, num_heads=12,
+        patch_size=16, img_size=224, embed_dim=768, depth=12, num_heads=12,
         decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
         mlp_ratio=4, norm_layer=partial(LayerNorm, eps=1e-6), **kwargs)
     return model
@@ -570,7 +570,7 @@ def sim_vit_huge_patch14_dec512d8b(**kwargs):
 
 
 # set recommended archs
-sim_vit_base_patch16_img256 = sim_vit_base_patch16_img256_dec512d8b
+sim_vit_base_patch16_img224 = sim_vit_base_patch16_img224_dec512d8b
 sim_vit_base_patch16 = sim_vit_base_patch16_dec512d8b  # decoder: 512 dim, 8 blocks
 sim_vit_large_patch16 = sim_vit_large_patch16_dec512d8b  # decoder: 512 dim, 8 blocks
 sim_vit_huge_patch14 = sim_vit_huge_patch14_dec512d8b  # decoder: 512 dim, 8 blocks
