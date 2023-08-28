@@ -391,12 +391,12 @@ def auto_load_model(args, model_without_ddp, optimizer, loss_scaler):
             checkpoint = torch.load(args.resume, map_location='cpu')
         model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
         print("Resume checkpoint %s" % args.resume)
-        #if 'optimizer' in checkpoint and 'epoch' in checkpoint:
-        #    optimizer.load_state_dict(checkpoint['optimizer'])
-        #    args.start_epoch = checkpoint['epoch'] + 1
-        #    if 'scaler' in checkpoint:
-        #        loss_scaler.load_state_dict(checkpoint['scaler'])
-        #    print("With optim & sched!")
+        if 'optimizer' in checkpoint and 'epoch' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            args.start_epoch = checkpoint['epoch'] + 1
+            if 'scaler' in checkpoint:
+                loss_scaler.load_state_dict(checkpoint['scaler'])
+            print("With optim & sched!")
 
 
 def all_reduce_mean(x):
