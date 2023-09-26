@@ -85,7 +85,7 @@ def compute_metrics(model, sample, num_nuclei_classes):
     return batch_metrics, scores
 
 
-def prepare_model(chkpt_dir_vit, **kwargs):
+def prepare_model(chkpt_dir_cellvit, **kwargs):
     # build ViT encoder
 
     num_nuclei_classes = kwargs.pop('num_nuclei_classes')
@@ -97,7 +97,7 @@ def prepare_model(chkpt_dir_vit, **kwargs):
     vit_encoder = unetr_vit_base_patch16(num_classes=num_tissue_classes, **kwargs)
 
     # load ViT model
-    checkpoint = torch.load(chkpt_dir_vit, map_location='cpu')
+    checkpoint = torch.load(chkpt_dir_cellvit, map_location='cpu')
     msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
     print(msg)
 
