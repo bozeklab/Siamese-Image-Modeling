@@ -22,7 +22,7 @@ class Config:
     batch_size: int
 
 
-args = Config(data_path='/Users/piotrwojcik/data/pannuke/fold1', input_size=352, batch_size=2)
+args = Config(data_path='/Users/piotrwojcik/data/pannuke/fold1_3', input_size=352, batch_size=2)
 
 
 if __name__ == '__main__':
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     cells = []
 
     idxs = []
-    for _ in range(4):
+    for _ in range(3000):
         num = random.randint(1, 40)  # Generate a random number between 1 and 99 (both inclusive)
         idxs.append(num)
 

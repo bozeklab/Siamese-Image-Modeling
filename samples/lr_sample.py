@@ -20,7 +20,7 @@ def adjust_learning_rate(optimizer, epoch, args):
 def exponential_lr_schedule(epoch, args):
     base_lr = args.lr
     gamma = 0.85
-    lr = base_lr * math.pow(gamma, epoch)
+    lr = base_lr * math.pow(gamma, epoch / args.epochs)
     return lr
 
 def main():

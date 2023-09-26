@@ -28,7 +28,7 @@ def adjust_learning_rate(optimizer, epoch, args):
 def adjust_exp_learning_rate(optimizer, epoch, args):
     base_lr = args.lr
     gamma = 0.85
-    lr = base_lr * math.pow(gamma, epoch)
+    lr = base_lr * math.pow(gamma, epoch / args.epochs)
     for param_group in optimizer.param_groups:
         if "lr_scale" in param_group:
             param_group["lr"] = lr * param_group["lr_scale"]
