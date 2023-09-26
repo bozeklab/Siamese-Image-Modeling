@@ -183,8 +183,8 @@ class Config:
     batch_size: int
 
 
-args = Config(data_path='/Users/piotrwojcik/images_he_seg1000/positive/', input_size=352, with_blockwise_mask=True,
-              blockwise_num_masking_patches=314, crop_min=0.2, num_boxes=50, batch_size=2)
+args = Config(data_path='/Users/piotrwojcik/Downloads/fold_1_256_cls/positive/', input_size=224, with_blockwise_mask=True,
+              blockwise_num_masking_patches=127, crop_min=0.2, num_boxes=150, batch_size=2)
 
 if __name__ == '__main__':
     transform_train = DataAugmentationForSIM(args)

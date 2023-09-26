@@ -13,7 +13,7 @@ from torchvision.datasets import ImageFolder
 from torchvision.utils import draw_bounding_boxes
 
 from main_pretrain import DataAugmentationForSIM
-from util.datasets import ImagenetWithMask
+from util.datasets import ImagenetWithMask, ImagenetWithMaskAndTypes
 
 
 def add_border(image):
@@ -190,11 +190,11 @@ if __name__ == '__main__':
     transform_train = DataAugmentationForSIM(args)
     print(f'Pre-train data transform:\n{transform_train}')
 
-    dataset_train = ImagenetWithMask(os.path.join(args.data_path),
-                                     input_size=args.input_size,
-                                     transform=transform_train,
-                                     with_blockwise_mask=args.with_blockwise_mask,
-                                     blockwise_num_masking_patches=args.blockwise_num_masking_patches)
+    dataset_train = ImagenetWithMaskAndTypes(os.path.join(args.data_path),
+                                             input_size=args.input_size,
+                                             transform=transform_train,
+                                             with_blockwise_mask=args.with_blockwise_mask,
+                                             blockwise_num_masking_patches=args.blockwise_num_masking_patches)
     print(f'Build dataset: train images = {len(dataset_train)}')
 
     sampler_train = RandomSampler(dataset_train)
