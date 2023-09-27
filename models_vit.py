@@ -296,6 +296,11 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         x = self.fc_norm(x)
         return x if pre_logits else self.head(x)
 
+    def forward(self, x, boxes):
+        bboxes = self.forward_boxes(x, boxes)
+        bboxes = self.fc_norm(bboxes)
+        return self.head(bboxes)
+
 
 def vit_small_base_patch16(**kwargs):
     model = VisionTransformer(

@@ -26,7 +26,7 @@ import util.lr_sched as lr_sched
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, loss_scaler, max_norm: float = 0,
-                    mixup_fn: Optional[Mixup] = None, log_writer=None,
+                    log_writer=None,
                     args=None):
     model.train(True)
     metric_logger = misc.MetricLogger(delimiter="  ")
@@ -41,21 +41,22 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     if log_writer is not None:
         print('log_dir: {}'.format(log_writer.log_dir))
 
-    for data_iter_step, (samples, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+    for data_iter_step, sample in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
         # we use a per iteration (instead of per epoch) lr scheduler
         if data_iter_step % accum_iter == 0:
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
 
-        samples = samples.to(device, non_blocking=True)
-        targets = targets.to(device, non_blocking=True)
-
-        if mixup_fn is not None:
-            samples, targets = mixup_fn(samples, targets)
+        x1 = sample['x1'].to(device, non_blocking=True)
+        boxes1 = sample['boxes1'].to(device, non_blocking=True)
+        classes = sample['classes'].to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
-            outputs = model(samples)
-            loss = criterion(outputs, targets)
+            outputs = model(x1, boxes1)
+            mask = torch.all(boxes1 != -1, dim=1)
+            outputs = outputs[mask]
+            classes = classes[mask]
+            loss = criterion(outputs, classes)
 
         loss_value = loss.item()
 
@@ -109,19 +110,21 @@ def evaluate(data_loader, model, device):
     model.eval()
 
     for batch in metric_logger.log_every(data_loader, 10, header):
-        images = batch[0]
-        target = batch[-1]
-        images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
+        x1 = batch['x1'].to(device, non_blocking=True)
+        boxes1 = batch['boxes1'].to(device, non_blocking=True)
+        classes = batch['classes'].to(device, non_blocking=True)
 
         # compute output
         with torch.cuda.amp.autocast():
-            output = model(images)
-            loss = criterion(output, target)
+            outputs = model(x1, boxes1)
+            mask = torch.all(boxes1 != -1, dim=1)
+            outputs = outputs[mask]
+            classes = classes[mask]
+            loss = criterion(outputs, classes)
 
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        acc1, acc5 = accuracy(outputs, classes, topk=(1, 5))
 
-        batch_size = images.shape[0]
+        batch_size = x1.shape[0]
         metric_logger.update(loss=loss.item())
         metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
         metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
