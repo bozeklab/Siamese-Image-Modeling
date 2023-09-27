@@ -160,39 +160,33 @@ def get_args_parser():
 
     return parser
 
+def _pad_boxes_and_classes(boxes, classes, num_total):
+    fake_box = torch.tensor(4 * [-1])
+    if boxes is None:
+        if classes is None:
+            return fake_box.expand(num_total, -1), None
+        else:
+            return fake_box.expand(num_total, -1), fake_class.expand(num_total, -1)
 
-def _pad_boxes(items, num_total):
-    fake_element = torch.tensor(4 * [-1])
-    if items is None:
-        return fake_element.expand(num_total, -1)
+    items_available = boxes.shape[0]
 
-    boxes_available = items.shape[0]
+    if boxes.shape[0] <= num_total:
+        padding_length = num_total - items_available
+        fake_box = fake_box.expand(padding_length, -1)
+        fake_class = torch.tensor(padding_length * [-1])
+        boxes = torch.cat([boxes, fake_box])
+        if classes is None:
+            return boxes, None
+        else:
+            classes = torch.cat([classes, fake_class])
+            return boxes, classes
 
-    if items.shape[0] <= num_total:
-        padding_length = num_total - boxes_available
-        fake_box = fake_element.expand(padding_length, -1)
-        items = torch.cat([items, fake_box])
-        return items
+    idx = random.sample(range(items_available), num_total)
 
-    idx = random.sample(range(boxes_available), num_total)
-    return items[idx]
-
-
-def _pad_classes(items, num_total):
-    fake_element = torch.tensor(-1)
-    if items is None:
-        return fake_element.expand(num_total)
-
-    boxes_available = items.shape[0]
-
-    if items.shape[0] <= num_total:
-        padding_length = num_total - boxes_available
-        fake_box = fake_element.expand(padding_length)
-        items = torch.cat([items, fake_box])
-        return items
-
-    idx = random.sample(range(boxes_available), num_total)
-    return items[idx]
+    if classes is None:
+        return boxes[idx], None
+    else:
+        return boxes[idx], classes[idx]
 
 
 class DataPreprocessingForSIM(object):
@@ -203,8 +197,7 @@ class DataPreprocessingForSIM(object):
         self.to_tensor = transforms.ToTensor()
 
     def __call__(self, image, boxes, classes):
-        boxes = _pad_boxes(boxes, self.args.num_boxes)
-        classes = _pad_classes(classes, self.args.num_boxes)
+        boxes, classes = _pad_boxes_and_classes(boxes, classes, self.args.num_boxes)
         image, boxes = self.resize(image, boxes)
 
         return {'x': self.to_tensor(image),
@@ -237,7 +230,7 @@ class DataAugmentationForImagesWithMaps(object):
                                        iaa.Flipud(0.5),
                                        iaa.Rot90([1, 3]),
                                        iaa.GaussianBlur(sigma=(.1, 2.)),
-                                       iaa.Grayscale(alpha=(0.0, 1.0)),
+                                       #iaa.Grayscale(alpha=(0.0, 1.0)),
                                        #iaa.Solarize(0.3, threshold=(32, 128)),
                                        crop
                                        ], random_order=True)
@@ -276,7 +269,7 @@ class DataAugmentationForImagesWithMaps(object):
 
         return {
             'x0': self.to_tensor(orig_img),
-            'x': self.norm(self.to_tensor(image_aug)),
+            'x': self.to_tensor(image_aug),#self.norm(self.to_tensor(image_aug)),
             'nuclei_type_map': torch.tensor(tmap.get_arr()),
             'instance_map': torch.tensor(im),
             'hv_map': torch.tensor(ImagesWithSegmentationMaps.gen_instance_hv_map(im)),
@@ -290,7 +283,50 @@ class DataAugmentationForImagesWithMaps(object):
         return repr
 
 
-class DataAugmentationForSIM(object):
+class DataAugmentationForSIMFinetune(object):
+    def __init__(self, args):
+        self.args = args
+
+        self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
+        self.random_flip = RandomHorizontalFlip()
+        self.resize = Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR)
+        self.to_tensor = transforms.ToTensor()
+
+        self.color_transform = transforms.Compose([
+            transforms.RandomApply([
+                transforms.ColorJitter(0.4, 0.4, 0.2, 0.1)  # not strengthened
+            ], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.1),
+            transforms.RandomApply([Solarize()], p=0.2),
+        ])
+
+    def __call__(self, image, boxes1, classes):
+        boxes1, classes = _pad_boxes_and_classes(boxes1, classes, self.args.num_boxes)
+        image, boxes1 = self.resize(image, boxes1)
+        boxes0 = boxes1.clone()
+        spatial_image, _, boxes1 = self.random_flip(image, boxes1)
+
+        spatial_image, boxes1, _, _, _, _, _ = self.random_resized_crop(spatial_image, boxes1)
+        color_image = self.color_transform(spatial_image)
+
+        return {
+            'x0': self.to_tensor(image),
+            'x1': self.to_tensor(color_image),
+            'boxes0': boxes0,
+            'boxes1': boxes1,
+            'classes': classes,
+        }
+
+    def __repr__(self):
+        repr = "(DataAugmentationFinetune,\n"
+        repr += "  transform = %s,\n" % str(self.resize) + str(self.random_resized_crop) + str(self.random_flip) + \
+                str(self.color_transform) + str(self.to_tensor)
+        repr += ")"
+        return repr
+
+
+class DataAugmentationForSIMTraining(object):
     def __init__(self, args):
         self.args = args
 
@@ -317,7 +353,7 @@ class DataAugmentationForSIM(object):
         ])
 
     def __call__(self, image, boxes):
-        boxes = _pad_boxes(boxes, self.args.num_boxes)
+        boxes, _ = _pad_boxes_and_classes(boxes, None, self.args.num_boxes)
         image, boxes = self.resize(image, boxes)
         boxes0 = boxes.clone()
         spatial_image1, flip1, boxes1 = self.random_flip(image, boxes)
@@ -329,6 +365,7 @@ class DataAugmentationForSIM(object):
         color_image2 = self.color_transform2(spatial_image2)
 
         relative_flip = (flip1 and not flip2) or (flip2 and not flip1)
+
         return {
             'x0': self.to_tensor(image),
             'x1': self.to_tensor(color_image1),
@@ -355,7 +392,7 @@ class DataAugmentationForSIM(object):
         }
 
     def __repr__(self):
-        repr = "(DataAugmentation,\n"
+        repr = "(DataAugmentationTraining,\n"
         repr += "  transform = %s,\n" % str(self.resize) + str(self.random_resized_crop) + str(self.random_flip) + \
                 str(self.color_transform1) + str(self.to_tensor)
         repr += ")"
@@ -383,7 +420,7 @@ def main(args):
 
     # build augmentation and dataset
     if args.loss_type in ['sim']:
-        transform_train = DataAugmentationForSIM(args)
+        transform_train = DataAugmentationForSIMTraining(args)
     else:
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic

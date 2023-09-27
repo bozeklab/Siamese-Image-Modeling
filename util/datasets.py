@@ -65,7 +65,7 @@ class ImagenetWithMask(ImgWithPickledBoxesDataset):
                  input_size=224, patch_size=16, # no need to change now
                  max_mask_patches_per_block=None, # BEiT default setting, no need to change
                  min_mask_patches_per_block=16, # BEiT default setting, no need to change
-                 fixed_num_masking_patches=True, ### set to true, fixed number of masking patch to blockwise_num_masking_patches for sim training 
+                 fixed_num_masking_patches=True, ### set to true, fixed number of masking patch to blockwise_num_masking_patches for sim training
                  ):
         super().__init__(root, transform=transform)
         self.with_blockwise_mask = with_blockwise_mask
@@ -73,13 +73,13 @@ class ImagenetWithMask(ImgWithPickledBoxesDataset):
             from .masking_generator import MaskingGenerator
             window_size = input_size // patch_size
             self.masked_position_generator = MaskingGenerator(
-                (window_size, window_size), 
+                (window_size, window_size),
                 num_masking_patches=blockwise_num_masking_patches,
                 max_num_patches=max_mask_patches_per_block,
                 min_num_patches=min_mask_patches_per_block,
                 fixed_num_masking_patches=fixed_num_masking_patches
             )
-    
+
     def __getitem__(self, index):
         sample = super().__getitem__(index)
         if self.with_blockwise_mask:

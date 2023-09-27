@@ -12,7 +12,7 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.utils import draw_bounding_boxes
 
-from main_pretrain import DataAugmentationForSIM
+from main_pretrain import DataAugmentationForSIMTraining
 from util.datasets import ImagenetWithMask
 
 
@@ -187,7 +187,7 @@ args = Config(data_path='/Users/piotrwojcik/Downloads/fold_1_256_cls/positive/',
               blockwise_num_masking_patches=127, crop_min=0.2, num_boxes=150, batch_size=2)
 
 if __name__ == '__main__':
-    transform_train = DataAugmentationForSIM(args)
+    transform_train = DataAugmentationForSIMTraining(args)
     print(f'Pre-train data transform:\n{transform_train}')
 
     dataset_train = ImagenetWithMask(os.path.join(args.data_path),
