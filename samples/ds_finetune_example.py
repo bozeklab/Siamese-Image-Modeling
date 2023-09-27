@@ -188,7 +188,7 @@ args = Config(data_path='/Users/piotrwojcik/Downloads/fold_1_256_cls/positive/',
               blockwise_num_masking_patches=127, crop_min=0.2, num_boxes=150, batch_size=2)
 
 if __name__ == '__main__':
-    transform_train = DataAugmentationForSIMFinetune(args)
+    transform_train = DataAugmentationForSIMFinetune(args, is_training=True)
     print(f'Pre-train data transform:\n{transform_train}')
 
     dataset_finetune = ImgWithPickledBoxesAndClassesDataset(os.path.join(args.data_path),

@@ -25,6 +25,10 @@ from torch.utils.tensorboard import SummaryWriter
 import torchvision.datasets as datasets
 
 import timm
+
+from main_pretrain import DataAugmentationForSIMFinetune
+from util.img_with_pickle_dataset import ImgWithPickledBoxesAndClassesDataset
+
 assert timm.__version__ == "0.6.12" # version check
 from timm.models.layers import trunc_normal_
 from timm.data.mixup import Mixup
@@ -94,20 +98,6 @@ def get_args_parser():
     parser.add_argument('--resplit', action='store_true', default=False,
                         help='Do not random erase first (clean) augmentation split')
 
-    # * Mixup params
-    parser.add_argument('--mixup', type=float, default=0,
-                        help='mixup alpha, mixup enabled if > 0.')
-    parser.add_argument('--cutmix', type=float, default=0,
-                        help='cutmix alpha, cutmix enabled if > 0.')
-    parser.add_argument('--cutmix_minmax', type=float, nargs='+', default=None,
-                        help='cutmix min/max ratio, overrides alpha and enables cutmix if set (default: None)')
-    parser.add_argument('--mixup_prob', type=float, default=1.0,
-                        help='Probability of performing mixup or cutmix when either/both is enabled')
-    parser.add_argument('--mixup_switch_prob', type=float, default=0.5,
-                        help='Probability of switching to cutmix when both mixup and cutmix enabled')
-    parser.add_argument('--mixup_mode', type=str, default='batch',
-                        help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
-
     # * Finetuning params
     parser.add_argument('--finetune', default='',
                         help='finetune from checkpoint')
@@ -119,6 +109,8 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
                         help='dataset path')
+    parser.add_argument('--val_data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
+                        help='validation dataset path')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
     parser.add_argument('--use_tcs_dataset', default=False, action='store_true')
@@ -177,11 +169,15 @@ def main(args):
     torch.backends.cudnn.allow_tf32 = False
 
     # build dataset
-    transform_train = build_transform(is_train=True, args=args)
-    transform_val = build_transform(is_train=False, args=args)
+    transform_train = DataAugmentationForSIMFinetune(args, is_training=True)
+    transform_val = DataAugmentationForSIMFinetune(args, is_training=False)
     if not args.use_tcs_dataset:
-        dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val'), transform=transform_val)
+        dataset_train = ImgWithPickledBoxesAndClassesDataset(os.path.join(args.data_path),
+                                                                          ds_type='pannuke',
+                                                                          transform=transform_train)
+        dataset_val = ImgWithPickledBoxesAndClassesDataset(os.path.join(args.val_data_path),
+                                                                        ds_type='pannuke',
+                                                                        transform=transform_val)
     else:
         from util.tcs_datasets import ImagenetTCSDataset
         dataset_train = ImagenetTCSDataset('train',
@@ -237,16 +233,6 @@ def main(args):
         pin_memory=args.pin_mem,
         drop_last=False
     )
-
-    # build mixup
-    mixup_fn = None
-    mixup_active = args.mixup > 0 or args.cutmix > 0. or args.cutmix_minmax is not None
-    if mixup_active:
-        print("Mixup is activated!")
-        mixup_fn = Mixup(
-            mixup_alpha=args.mixup, cutmix_alpha=args.cutmix, cutmix_minmax=args.cutmix_minmax,
-            prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
-            label_smoothing=args.smoothing, num_classes=args.nb_classes)
 
     # build model
     model = models_vit.__dict__[args.model](

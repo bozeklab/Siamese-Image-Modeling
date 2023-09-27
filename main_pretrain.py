@@ -284,8 +284,10 @@ class DataAugmentationForImagesWithMaps(object):
 
 
 class DataAugmentationForSIMFinetune(object):
-    def __init__(self, args):
+    def __init__(self, args, is_training=True):
         self.args = args
+
+        self.is_training = is_training
 
         self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
         self.random_flip = RandomHorizontalFlip()
@@ -305,10 +307,14 @@ class DataAugmentationForSIMFinetune(object):
         boxes1, classes = _pad_boxes_and_classes(boxes1, classes, self.args.num_boxes)
         image, boxes1 = self.resize(image, boxes1)
         boxes0 = boxes1.clone()
-        spatial_image, _, boxes1 = self.random_flip(image, boxes1)
 
-        spatial_image, boxes1, _, _, _, _, _ = self.random_resized_crop(spatial_image, boxes1)
-        color_image = self.color_transform(spatial_image)
+        if self.is_training:
+            spatial_image, _, boxes1 = self.random_flip(image, boxes1)
+
+            spatial_image, boxes1, _, _, _, _, _ = self.random_resized_crop(spatial_image, boxes1)
+            color_image = self.color_transform(spatial_image)
+        else:
+            color_image = image
 
         return {
             'x0': self.to_tensor(image),
