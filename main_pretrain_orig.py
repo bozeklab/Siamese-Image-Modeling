@@ -35,7 +35,7 @@ import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.augmentation import RandomResizedCrop, GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlip, Solarize
 from util.datasets import ImagenetWithMask
-import models_sim
+import models_sim_orig
 from engine_pretrain import train_one_epoch
 
 
