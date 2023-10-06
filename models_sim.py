@@ -521,6 +521,7 @@ class SiameseIMViT(nn.Module):
 
         pred_boxes_features = self.self.box_head(pred_boxes_features)
         pred_boxes_features = self.self.box_projector(pred_boxes_features)
+        pred_boxes_features = self.self.box_predictor(pred_boxes_features)
         pred = F.normalize(pred_boxes_features, dim=1)
 
         pred = pred.reshape(-1, pred.shape[-1])
