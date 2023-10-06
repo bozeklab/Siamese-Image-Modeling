@@ -23,6 +23,7 @@ from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
 from models_vit import Block, CrossBlock, PatchEmbed
+import torch.nn.functional as F
 
 from torchvision.ops import roi_align
 
