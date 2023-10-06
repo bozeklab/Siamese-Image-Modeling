@@ -18,7 +18,9 @@ import math
 
 import torch
 import torch.nn as nn
+from timm.models import Mlp
 
+from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
 from models_vit import Block, CrossBlock, PatchEmbed
@@ -61,8 +63,9 @@ class SiameseIMViT(nn.Module):
         self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
 
         # Boxes embedding
-        self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
-                                    in_chans=embed_dim, embed_dim=embed_dim)
+        self.box_head = FastRCNNConvFCHead()
+        self.box_projector = MLP()  # head channel
+        self.box_predictor = MLP()
 
         self.num_patches = self.patch_embed.num_patches
 
@@ -158,8 +161,19 @@ class SiameseIMViT(nn.Module):
         self.mm_blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer, init_values=self.args.init_values)
             for i in range(depth)])
-        
+
+        self.mm_box_head = FastRCNNConvFCHead()
+        self.mm_box_projector = MLP() # head channel
+
         # load weight
+        self.mm_box_head.load_state_dict(self.box_head.state_dict())
+        for p in self.mm_box_head.parameters():
+            p.requires_grad = False
+
+        self.mm_box_projector.load_state_dict(self.box_projector.state_dict())
+        for p in self.mm_box_projector.parameters():
+            p.requires_grad = False
+
         self.mm_patch_embed.load_state_dict(self.patch_embed.state_dict())
         for p in self.mm_patch_embed.parameters():
             p.requires_grad = False
@@ -281,7 +295,7 @@ class SiameseIMViT(nn.Module):
                                 roi_box_info[:, 1], roi_box_info[:, 2],
                                 roi_box_info[:, 3]), dim=1).to(x.device)
         aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
-                                output_size=8)
+                                output_size=7)
 
         aligned_out = aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[mask]
         aligned_out.view(-1, self.embed_dim, 8, 8)
@@ -321,6 +335,12 @@ class SiameseIMViT(nn.Module):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         for param_q, param_k in zip(self.blocks.parameters(), self.mm_blocks.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
+        if hasattr(self, 'mm_box_head'):
+            for param_q, param_k in zip(self.mm_box_head.parameters(), self.mm_box_head.parameters()):
+                param_k.data = param_k.data * mm + param_q.data * (1. - mm)
+        if hasattr(self, 'mm_box_projector'):
+            for param_q, param_k in zip(self.mm_box_projector.parameters(), self.mm_box_projector.parameters()):
+                param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         if hasattr(self, 'mm_cls_token'):
             self.mm_cls_token.data = self.mm_cls_token.data * mm + self.cls_token.data * (1. - mm)
         if hasattr(self, 'mm_norm'):
@@ -494,9 +514,14 @@ class SiameseIMViT(nn.Module):
                                                            mask=mask)
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
                                                              mask=mask)
-            target_boxes_features = self.box_embed(target_boxes_features).squeeze()
 
-        pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
+            target_boxes_features = self.self.mm_box_head(target_boxes_features)
+            target_boxes_features = self.self.mm_box_projector (target_boxes_features)
+            target = F.normalize(target_boxes_features, dim=1)
+
+        pred_boxes_features = self.self.box_head(pred_boxes_features)
+        pred_boxes_features = self.self.box_projector(pred_boxes_features)
+        pred = F.normalize(pred_boxes_features, dim=1)
 
         pred = pred.reshape(-1, pred.shape[-1])
         target = target.reshape(-1, target.shape[-1])
