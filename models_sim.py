@@ -18,7 +18,6 @@ import math
 
 import torch
 import torch.nn as nn
-from timm.models import Mlp
 
 from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
@@ -231,8 +230,8 @@ class SiameseIMViT(nn.Module):
         w = self.patch_embed.proj.weight.data
         torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
 
-        w = self.box_embed.proj.weight.data
-        torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
+        #w = self.box_embed.proj.weight.data
+        #torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
 
         # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
         if hasattr(self, 'cls_token'):
