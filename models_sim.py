@@ -514,13 +514,13 @@ class SiameseIMViT(nn.Module):
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
                                                              mask=mask)
 
-            target_boxes_features = self.self.mm_box_head(target_boxes_features)
-            target_boxes_features = self.self.mm_box_projector (target_boxes_features)
+            target_boxes_features = self.mm_box_head(target_boxes_features)
+            target_boxes_features = self.mm_box_projector (target_boxes_features)
             target = F.normalize(target_boxes_features, dim=1)
 
-        pred_boxes_features = self.self.box_head(pred_boxes_features)
-        pred_boxes_features = self.self.box_projector(pred_boxes_features)
-        pred_boxes_features = self.self.box_predictor(pred_boxes_features)
+        pred_boxes_features = self.box_head(pred_boxes_features)
+        pred_boxes_features = self.box_projector(pred_boxes_features)
+        pred_boxes_features = self.box_predictor(pred_boxes_features)
         pred = F.normalize(pred_boxes_features, dim=1)
 
         pred = pred.reshape(-1, pred.shape[-1])
