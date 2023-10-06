@@ -29,7 +29,7 @@ class FastRCNNConvFCHead(nn.Module):
         self.ac4 = nn.ReLU()
 
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(in_features=7 * in_channels, out_features=in_channels, bias=True)
+        self.fc1 = nn.Linear(in_features=7 * 7 * in_channels, out_features=in_channels, bias=True)
         self.fc_relu1 = nn.ReLU()
 
     def forward(self, roi_feature_map):
