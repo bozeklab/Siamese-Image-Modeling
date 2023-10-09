@@ -72,6 +72,8 @@ class ImgWithPickledBoxesAndClassesDataset(datasets.VisionDataset):
             cls = pickle.load(class_file)
             if self.cls_loader in ['dlbcl',]:
                 class_data = torch.tensor([dlbcl_cells[s] for s in cls[0]])
+            elif self.cls_loader in ['pannuke',]:
+                class_data = cls
 
         return self.transform(image, box_data, class_data)
 

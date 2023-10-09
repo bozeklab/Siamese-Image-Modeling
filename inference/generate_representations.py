@@ -5,7 +5,8 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from main_pretrain import DataPreprocessingForSIM
+from main_pretrain import DataPreprocessingForSIMWithClasses
+from models_sim import sim_vit_base_patch16_dec256d8b
 from models_unetr_vit import unetr_vit_small_base_patch16
 from models_vit import vit_base_patch16, vit_small_base_patch16
 from PIL import Image
@@ -28,7 +29,7 @@ class Config:
 
 
 args = Config(data_path='/Users/piotrwojcik/data/he/positive',
-              input_size=256,
+              input_size=224,
               num_boxes=350,
               batch_size=1,
               init_values=None,
@@ -37,26 +38,17 @@ args = Config(data_path='/Users/piotrwojcik/data/he/positive',
 
 def prepare_model(chkpt_dir, **kwargs):
     # build model
-    model = unetr_vit_small_base_patch16(**kwargs)
+    model = sim_vit_base_patch16_dec256d8b(**kwargs)
 
     # load model
-    checkpoint = torch.load(chkpt_dir, map_location='cpu')['teacher']
-
-    #print(checkpoint.keys())
-    #checkpoint_model = checkpoint['model']
-    checkpoint_model = {k.replace("backbone.", ""): v for k, v in checkpoint.items()}
-    #checkpoint_model.pop('head.weight')
-    #checkpoint_model.pop('head.bias')
-
-    interpolate_pos_embed(model, checkpoint_model)
-
-    msg = model.load_state_dict(checkpoint_model, strict=False)
+    checkpoint = torch.load(chkpt_dir, map_location='cpu')
+    msg = model.load_state_dict(checkpoint, strict=False)
     print(msg)
     return model
 
 
 if __name__ == '__main__':
-    transform_inference = DataPreprocessingForSIM(args)
+    transform_inference = DataPreprocessingForSIMWithClasses(args)
     print(f'Data pre-processing:\n{transform_inference}')
 
     dataset_inference = ImgWithPickledBoxesAndClassesDataset(os.path.join(args.data_path), transform=transform_inference)

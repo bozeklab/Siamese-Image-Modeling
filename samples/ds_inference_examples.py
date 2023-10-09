@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import RandomSampler
 from torchvision import transforms
 
-from main_pretrain import DataPreprocessingForSIM
+from main_pretrain import DataPreprocessingForSIMWithClasses
 from samples.ds_pretrain_example import tensor_batch_to_list, draw_bboxes, create_image_grid
 from util.img_with_pickle_dataset import ImgWithPickledBoxesAndClassesDataset
 
@@ -22,7 +22,7 @@ args = Config(data_path='/Users/piotrwojcik/data/he/positive', input_size=352, n
 
 
 if __name__ == '__main__':
-    transform_inference = DataPreprocessingForSIM(args)
+    transform_inference = DataPreprocessingForSIMWithClasses(args)
     print(f'Data pre-processing:\n{transform_inference}')
 
     dataset_inference = ImgWithPickledBoxesAndClassesDataset(os.path.join(args.data_path), transform=transform_inference)

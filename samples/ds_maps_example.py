@@ -10,7 +10,7 @@ from imgaug import SegmentationMapsOnImage
 from torch.utils.data import RandomSampler
 from torchvision import transforms
 
-from main_pretrain import DataPreprocessingForSIM, DataAugmentationForImagesWithMaps
+from main_pretrain import DataPreprocessingForSIMWithClasses, DataAugmentationForImagesWithMaps
 from samples.ds_pretrain_example import tensor_batch_to_list, draw_bboxes, create_image_grid
 from util.img_with_mask_dataset import ImagesWithSegmentationMaps
 

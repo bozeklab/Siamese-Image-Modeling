@@ -259,10 +259,10 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
                                 roi_box_info[:, 3]), dim=1).to(x.device)
 
         aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
-                                output_size=8)
+                                output_size=7)
 
-        aligned_out = aligned_out.view(batch_size, num_box, self.embed_dim, 8, 8)[mask]
-        aligned_out.view(-1, self.embed_dim, 8, 8)
+        aligned_out = aligned_out.view(batch_size, num_box, self.embed_dim, 7, 7)[mask]
+        aligned_out.view(-1, self.embed_dim, 7, 7)
 
         return aligned_out
 

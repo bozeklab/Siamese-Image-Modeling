@@ -162,6 +162,7 @@ def get_args_parser():
 
 def _pad_boxes_and_classes(boxes, classes, num_total):
     fake_box = torch.tensor(4 * [-1])
+    fake_class = torch.tensor(num_total * [-1])
     if boxes is None:
         if classes is None:
             return fake_box.expand(num_total, -1), None
@@ -189,7 +190,7 @@ def _pad_boxes_and_classes(boxes, classes, num_total):
         return boxes[idx], classes[idx]
 
 
-class DataPreprocessingForSIM(object):
+class DataPreprocessingForSIMWithClasses(object):
     def __init__(self, args):
         self.args = args
 
@@ -203,6 +204,27 @@ class DataPreprocessingForSIM(object):
         return {'x': self.to_tensor(image),
                 'boxes': boxes,
                 'classes': classes,
+                }
+
+    def __repr__(self):
+        repr = "(DataPreprocessing,\n"
+        repr += "  transform = %s,\n" % str(self.resize) + str(self.to_tensor)
+        repr += ")"
+        return repr
+
+class DataPreprocessingForSIM(object):
+    def __init__(self, args):
+        self.args = args
+
+        self.resize = Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR)
+        self.to_tensor = transforms.ToTensor()
+
+    def __call__(self, image, boxes):
+        boxes, classes = _pad_boxes_and_classes(boxes, None, self.args.num_boxes)
+        image, boxes = self.resize(image, boxes)
+
+        return {'x': self.to_tensor(image),
+                'boxes': boxes,
                 }
 
     def __repr__(self):

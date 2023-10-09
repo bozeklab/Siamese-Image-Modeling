@@ -218,7 +218,11 @@ def prepare_model(chkpt_dir_vit, **kwargs):
 
     checkpoint_model = checkpoint['model']
     interpolate_pos_embed(vit_encoder, checkpoint_model)
-
+    for k in checkpoint_model.keys():
+        v1 = checkpoint_model[k]
+        v2 = checkpoint['model'][k]
+        assert(torch.equal(v1, v2))
+    print('all equal')
     msg = vit_encoder.load_state_dict(checkpoint['model'], strict=False)
     print(msg)
     #assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}

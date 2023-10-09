@@ -183,7 +183,7 @@ class Config:
     batch_size: int
 
 
-args = Config(data_path='/Users/piotrwojcik/Downloads/fold_1_256_cls/positive/', input_size=224, with_blockwise_mask=True,
+args = Config(data_path='/Users/piotrwojcik/Downloads/fold_3_256/positive/', input_size=224, with_blockwise_mask=True,
               blockwise_num_masking_patches=127, crop_min=0.2, num_boxes=150, batch_size=2)
 
 if __name__ == '__main__':
