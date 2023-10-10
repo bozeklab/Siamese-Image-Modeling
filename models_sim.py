@@ -170,6 +170,10 @@ class SiameseIMViT(nn.Module):
         self.mm_blocks.load_state_dict(self.blocks.state_dict())
         for p in self.mm_blocks.parameters():
             p.requires_grad = False
+
+        self.mm_box_embed.load_state_dict(self.blocks.state_dict())
+        for p in self.mm_box_embed.parameters():
+            p.requires_grad = False
         # --------------------------------------------------------------------------
  
         # --------------------------------------------------------------------------
@@ -318,6 +322,8 @@ class SiameseIMViT(nn.Module):
     @torch.cuda.amp.autocast(enabled=False)
     def mm_update(self, mm):
         for param_q, param_k in zip(self.patch_embed.parameters(), self.mm_patch_embed.parameters()):
+            param_k.data = param_k.data * mm + param_q.data * (1. - mm)
+        for param_q, param_k in zip(self.box_embed.parameters(), self.mm_box_embed.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         for param_q, param_k in zip(self.blocks.parameters(), self.mm_blocks.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
@@ -494,7 +500,7 @@ class SiameseIMViT(nn.Module):
                                                            mask=mask)
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
                                                              mask=mask)
-            target_boxes_features = self.box_embed(target_boxes_features).squeeze()
+            target_boxes_features = self.mm_box_embed(target_boxes_features).squeeze()
 
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
 
@@ -505,12 +511,12 @@ class SiameseIMViT(nn.Module):
         outputs = {}
         with torch.cuda.amp.autocast(False):
             loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
-            #loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
-            loss = loss_grid #+ loss_boxes
+            loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
+            loss = loss_grid + loss_boxes
 
         outputs['loss_sim'] = loss.item()
-        outputs['loss_sim_grid'] = loss.item() #loss_grid.item()
-        #outputs['loss_sim_boxes'] = loss_boxes.item()
+        outputs['loss_sim_grid'] = loss_grid.item()
+        outputs['loss_sim_boxes'] = loss_boxes.item()
 
         return loss, outputs
 
