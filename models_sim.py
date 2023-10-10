@@ -146,6 +146,11 @@ class SiameseIMViT(nn.Module):
             self.patch_embed.proj.weight.requires_grad = False
             self.patch_embed.proj.bias.requires_grad = False
 
+    @property
+    def last_attn(self):
+        return torch.stack([block.attn.last_attn for block in self.predictor_decoder_blocks], dim=0)
+
+
     def build_momentum_target(self, img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                 mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
         # --------------------------------------------------------------------------
