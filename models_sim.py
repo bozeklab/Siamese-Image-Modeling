@@ -40,6 +40,27 @@ class PermuteBN(nn.Module):
 
         return x
 
+class MLP(nn.Module):
+    def __init__(self, in_dim=768, inner_dim=4096, out_dim=768):
+        super(MLP, self).__init__()
+
+        self.linear1 = nn.Linear(in_dim, inner_dim)
+        self.bn1 = nn.BatchNorm1d(inner_dim)
+        self.relu1 = nn.ReLU(inplace=True)
+
+        self.linear2 = nn.Linear(inner_dim, out_dim)
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = x.unsqueeze(-1)
+        x = self.bn1(x)
+        x = x.squeeze(-1)
+        x = self.relu1(x)
+
+        x = self.linear2(x)
+
+        return x
+
 
 class SiameseIMViT(nn.Module):
     """  SiameseIM with VisionTransformer backbone
@@ -63,6 +84,8 @@ class SiameseIMViT(nn.Module):
         # Boxes embedding
         self.box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
                                     in_chans=embed_dim, embed_dim=embed_dim)
+
+        self.box_projector = MLP()
 
         self.num_patches = self.patch_embed.num_patches
 
@@ -150,7 +173,6 @@ class SiameseIMViT(nn.Module):
     def last_attn(self):
         return torch.stack([block.attn.last_attn for block in self.predictor_decoder_blocks], dim=0)
 
-
     def build_momentum_target(self, img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                 mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
         # --------------------------------------------------------------------------
@@ -158,6 +180,8 @@ class SiameseIMViT(nn.Module):
         self.mm_patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
         self.mm_box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
                                        in_chans=embed_dim, embed_dim=embed_dim)
+
+        self.mm_box_projector = MLP()
 
         if hasattr(self, 'cls_token'):
             self.mm_cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
@@ -181,6 +205,11 @@ class SiameseIMViT(nn.Module):
         self.mm_box_embed.load_state_dict(self.box_embed.state_dict())
         for p in self.mm_box_embed.parameters():
             p.requires_grad = False
+
+        self.mm_box_projector.load_state_dict(self.box_projector.state_dict())
+        for p in self.mm_box_projector.parameters():
+            p.requires_grad = False
+
         # --------------------------------------------------------------------------
  
         # --------------------------------------------------------------------------
@@ -331,6 +360,8 @@ class SiameseIMViT(nn.Module):
         for param_q, param_k in zip(self.patch_embed.parameters(), self.mm_patch_embed.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         for param_q, param_k in zip(self.box_embed.parameters(), self.mm_box_embed.parameters()):
+            param_k.data = param_k.data * mm + param_q.data * (1. - mm)
+        for param_q, param_k in zip(self.box_projector.parameters(), self.mm_box_projector.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         for param_q, param_k in zip(self.blocks.parameters(), self.mm_blocks.parameters()):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
@@ -508,8 +539,11 @@ class SiameseIMViT(nn.Module):
             target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
                                                              mask=mask)
             target_boxes_features = self.mm_box_embed(target_boxes_features).squeeze()
+            target_boxes_features = self.mm_box_projector(target_boxes_features)
 
         pred_boxes_features = self.box_embed(pred_boxes_features).squeeze()
+        pred_boxes_features = self.box_projector(pred_boxes_features)
+
 
         pred = pred.reshape(-1, pred.shape[-1])
         target = target.reshape(-1, target.shape[-1])
