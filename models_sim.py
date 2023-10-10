@@ -173,7 +173,7 @@ class SiameseIMViT(nn.Module):
         for p in self.mm_blocks.parameters():
             p.requires_grad = False
 
-        self.mm_box_embed.load_state_dict(self.blocks.state_dict())
+        self.mm_box_embed.load_state_dict(self.box_embed.state_dict())
         for p in self.mm_box_embed.parameters():
             p.requires_grad = False
         # --------------------------------------------------------------------------
