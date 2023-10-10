@@ -151,6 +151,8 @@ class SiameseIMViT(nn.Module):
         # --------------------------------------------------------------------------
         # momentum encoder specifics
         self.mm_patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+        self.mm_box_embed = PatchEmbed(img_size=box_patch_size, patch_size=box_patch_size,
+                                       in_chans=embed_dim, embed_dim=embed_dim)
 
         if hasattr(self, 'cls_token'):
             self.mm_cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
