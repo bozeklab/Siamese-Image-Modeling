@@ -39,8 +39,7 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
         0].cpu()
     cmap = plt.get_cmap('jet')
-    return cmap(attentions)[:, :, :3]
-
+    return cmap(attentions)
 
 def attention_map_to_heatmap(attention_map, cmap='hot'):
     """
