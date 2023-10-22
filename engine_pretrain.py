@@ -91,7 +91,8 @@ def train_one_epoch(model: torch.nn.Module,
                 loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
 
-            attn = attention_map_to_heatmap(attn[:, 0, ...].detach().cpu().numpy())
+            attn_grid = [attention_map_to_heatmap(attn[i, 0, ...].detach().cpu().numpy()) for i in range(2)]
+            attn_grid = torchvision.utils.make_grid(attn_grid)
         else:
             samples = samples.to(device, non_blocking=True)
 
@@ -139,7 +140,7 @@ def train_one_epoch(model: torch.nn.Module,
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_image('input_image', img_grid, global_step=epoch_1000x)
-            log_writer.add_image('attn', attn, global_step=epoch_1000x)
+            log_writer.add_image('attn', attn_grid, global_step=epoch_1000x)
 
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)

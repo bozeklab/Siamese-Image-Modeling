@@ -36,10 +36,6 @@ def attention_map_to_heatmap(attention_map, cmap='hot'):
 
     # Apply the colormap to the attention map.
     heatmap = (colormap(attention_map)[:, :, :3] * 255).astype(np.uint8)
-
-    print('!!!!')
-    print(np.shape(heatmap))
-
     return heatmap
 
 def get_bounding_box(img):
