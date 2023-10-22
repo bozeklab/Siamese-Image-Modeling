@@ -471,7 +471,7 @@ class SiameseIMViT(nn.Module):
         for blk in self.predictor_decoder_blocks:
             x = blk(x)
 
-        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][..., 1, -x2_embed.shape[1]:]
+        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][..., -x2_embed.shape[1]:]
         B = attn.shape[0]
         num_heads = attn.shape[1]
         attn = attn.reshape((B, num_heads, self.patch_embed.grid_size[0], self.patch_embed.grid_size[1]))
