@@ -93,7 +93,7 @@ def train_one_epoch(model: torch.nn.Module,
 
             vattn = visualize_attention(attn, w_featmap=14, h_featmap=14,
                                         patch_size=16, threshold=0.6)[:, :, :3]
-            vattn = np.transpose(vattn, (2, 0, 1))
+            vattn = vattn.permute(2, 0, 1)
 
             del attn
         else:
