@@ -216,6 +216,10 @@ class SiameseIMViT(nn.Module):
             for p in self.teacher_norm.parameters():
                 p.requires_grad = False
 
+    @property
+    def last_attn(self):
+        return torch.stack([block.attn.last_attn for block in self.decoder_blocks], dim=0)
+
     def initialize_weights(self):
         # initialization
         # initialize (and freeze) pos_embed by sin-cos embedding
@@ -481,6 +485,10 @@ class SiameseIMViT(nn.Module):
         # forward online decoder
         for blk in self.predictor_decoder_blocks:
             x = blk(x)
+
+        print('!!!')
+        attn = self.model.mae.last_attn[0]
+        print(attn.shape)
 
         # predictor projection
         x = self.decoder_pred(x)

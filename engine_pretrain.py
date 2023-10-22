@@ -86,6 +86,7 @@ def train_one_epoch(model: torch.nn.Module,
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
                 loss, outputs = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
+
         else:
             samples = samples.to(device, non_blocking=True)
 

@@ -63,6 +63,8 @@ class Attention(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
+        self.last_attn = None
+
     def forward(self, x):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
@@ -71,6 +73,9 @@ class Attention(nn.Module):
         attn = ((q * self.scale) @ k.transpose(-2, -1))
         attn = attn - attn.max(-1)[0].unsqueeze(-1) # in case of overflow for fp16
         attn = attn.softmax(dim=-1)
+
+        self.last_attn = attn.detach().clone()
+
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
