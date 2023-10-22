@@ -31,8 +31,6 @@ def train_one_epoch(model: torch.nn.Module,
                     log_writer=None,
                     args=None):
     model.train(True)
-    print('!!!')
-    print(log_writer)
     metric_logger = misc.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', misc.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
@@ -87,6 +85,7 @@ def train_one_epoch(model: torch.nn.Module,
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
             img_grid = torchvision.utils.make_grid([x0[i] for i in range(x0.shape[0])])
+            print(log_writer)
             log_writer.add_image('input_image', img_grid)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
