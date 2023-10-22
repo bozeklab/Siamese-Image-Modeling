@@ -141,9 +141,9 @@ def train_one_epoch(model: torch.nn.Module,
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_image('input_image', x2[0], global_step=epoch_1000x)
-            for j in range(attn.shape[0]):
+            for j in range(vattn.shape[0]):
                 fname = os.path.join(args.output_dir, "str(global_step) + attn-head" + str(j) + ".png")
-                plt.imsave(fname=fname, arr=attn[j], format='png')
+                plt.imsave(fname=fname, arr=vattn[j], format='png')
                 print(f"{fname} saved.")
 
             #log_writer.add_image('attn', vattn, global_step=epoch_1000x)
