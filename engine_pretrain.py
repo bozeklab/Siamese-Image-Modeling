@@ -85,6 +85,7 @@ def train_one_epoch(model: torch.nn.Module,
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
             img_grid = torchvision.utils.make_grid([x0[i] for i in range(x0.shape[0])])
+            log_writer.add_scalar('dupa', 0.4, 1)
             log_writer.add_image('input_image', img_grid)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
