@@ -474,7 +474,7 @@ class SiameseIMViT(nn.Module):
         print('!!!')
         print(self.last_attn[len(self.predictor_decoder_blocks) - 1].shape)
 
-        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][:, 0, -x2_embed.shape[1]:, -x2_embed.shape[1]:]
+        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][:, :, 0, -x2_embed.shape[1]:]
         print('!!!!')
         print(attn.shape)
 
