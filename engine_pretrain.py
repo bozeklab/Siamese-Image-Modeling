@@ -22,6 +22,7 @@ import torch
 import torchvision
 
 import util.misc as misc
+import numpy as np
 import util.lr_sched as lr_sched
 from util.tools import attention_map_to_heatmap
 
