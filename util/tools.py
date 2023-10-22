@@ -9,12 +9,35 @@ from typing import Tuple
 
 import torch.nn.functional as F
 import numpy as np
+import matplotlib.pyplot as plt
 import scipy
 from scipy import ndimage
 from torchmetrics.functional import dice
 from torchmetrics.functional.classification import binary_jaccard_index
 from scipy.optimize import linear_sum_assignment
 
+
+def attention_map_to_heatmap(attention_map, cmap='hot'):
+    """
+    Convert an attention map to an RGB heatmap.
+
+    Args:
+        attention_map (numpy.ndarray): A 2D attention map.
+        cmap (str): Colormap name (e.g., 'hot', 'jet', 'viridis', 'inferno').
+
+    Returns:
+        heatmap (numpy.ndarray): An RGB heatmap.
+    """
+    # Normalize the attention map values to be in the range [0, 1].
+    attention_map = (attention_map - attention_map.min()) / (attention_map.max() - attention_map.min())
+
+    # Get the colormap.
+    colormap = plt.get_cmap(cmap)
+
+    # Apply the colormap to the attention map.
+    heatmap = (colormap(attention_map)[:, :, :3] * 255).astype(np.uint8)
+
+    return heatmap
 
 def get_bounding_box(img):
     """Get bounding box coordinate information."""
