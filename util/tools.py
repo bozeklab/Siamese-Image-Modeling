@@ -30,12 +30,10 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
     idx2 = torch.argsort(idx)
     for head in range(nh):
         th_attn[head] = th_attn[head][idx2[head]]
-    print('!!!')
-    print(th_attn.shape)
     th_attn = th_attn.reshape(nh, w_featmap, h_featmap).float()
     # interpolate
-    th_attn = nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
-        0].cpu().numpy()
+    th_attn = nn.functional.interpolate(th_attn.unsqueeze(0),
+                                        scale_factor=patch_size, mode="nearest")[0].cpu().numpy()
 
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[

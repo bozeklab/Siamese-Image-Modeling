@@ -90,7 +90,7 @@ def train_one_epoch(model: torch.nn.Module,
                 loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
 
-            vattn = visualize_attention(attn, 14, 14,
+            vattn = visualize_attention(attn, w_featmap=14, h_featmap=14,
                                         patch_size=16, threshold=0.6)
             del attn
 
