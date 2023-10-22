@@ -38,6 +38,7 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
         0].cpu()
+    print(attentions)
     cmap = plt.get_cmap('jet')
     cmap_list = [torch.tensor(cmap(attentions[i])[:, :, :3]).unsqueeze(0) for i in range(attentions.shape[0])]
     return torch.cat(cmap_list, dim=0)
