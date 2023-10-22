@@ -92,10 +92,9 @@ def train_one_epoch(model: torch.nn.Module,
                 metric_logger.update(**outputs)
 
             vattn = visualize_attention(attn, w_featmap=14, h_featmap=14,
-                                        patch_size=16, threshold=0.6)
+                                        patch_size=16, threshold=0.6)[:, :, :3]
+            vattn = vattn.transpose(2, 0, 1)
 
-            print('!!!')
-            print(vattn.shape)
             del attn
         else:
             samples = samples.to(device, non_blocking=True)
