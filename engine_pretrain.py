@@ -90,7 +90,7 @@ def train_one_epoch(model: torch.nn.Module,
             attn = model.last_attn[len(model.predictor_decoder_blocks) - 1][..., 1, -L:]
             B = attn.shape[0]
             num_heads = attn.shape[1]
-            attn = attn.reshape((B, num_heads, model.patch_embed.grid_size[0], model.patch_embed.grid_size[1]))
+            attn = attn.reshape((B, num_heads, 196))
             attn = attention_map_to_heatmap(attn[0])
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
