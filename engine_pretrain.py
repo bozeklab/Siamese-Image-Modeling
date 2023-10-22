@@ -148,8 +148,6 @@ def train_one_epoch(model: torch.nn.Module,
             #    plt.imsave(fname=fname, arr=vattn[j], format='png')
             #    print(f"{fname} saved.")
 
-            print('!!!!')
-            print(vattn.shape)
             log_writer.add_image('attn', vattn, global_step=epoch_1000x)
 
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
