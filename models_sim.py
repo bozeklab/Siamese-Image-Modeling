@@ -442,7 +442,7 @@ class SiameseIMViT(nn.Module):
         else:
             return self.forward_mae(*args, **kwargs)
 
-    def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, mask=None):
+    def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, mask=None, logger=None):
         # forward online encoder
         if self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
@@ -486,11 +486,11 @@ class SiameseIMViT(nn.Module):
         for blk in self.predictor_decoder_blocks:
             x = blk(x)
 
-        print('!!!')
-        print(x1_vis_tokens.shape)
-        print(x2_embed.shape[1])
         attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][..., 1, -x2_embed.shape[1]:]
-        print(attn.shape)
+        B = attn.shape[0]
+        num_heads = attn.shape[1]
+        attn = attn.reshape((B, num_heads, self.patch_embed.grid_size[0], self.patch_embed.grid_size[1]))
+        print(attn)
 
         # predictor projection
         x = self.decoder_pred(x)
