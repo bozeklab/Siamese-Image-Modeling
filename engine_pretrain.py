@@ -91,7 +91,8 @@ def train_one_epoch(model: torch.nn.Module,
                 loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
 
-            attn_grid = [torch.tensor(attention_map_to_heatmap(attn[i, 0, ...].detach().cpu().numpy())) for i in range(2)]
+            attn_grid = [attention_map_to_heatmap(attn[i, 0, ...].detach().cpu().numpy()) for i in range(2)]
+            print(np.shape(attn_grid))
             attn_grid = torchvision.utils.make_grid(attn_grid)
         else:
             samples = samples.to(device, non_blocking=True)
