@@ -17,8 +17,9 @@ from torchmetrics.functional.classification import binary_jaccard_index
 from scipy.optimize import linear_sum_assignment
 import torch.nn as nn
 
+
 def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, threshold=0.6):
-    print(attentions.size())
+    attentions = attentions[0, :, 0, 1:]
 
     bsz, nh, num_patches, _ = attentions.size()
 
