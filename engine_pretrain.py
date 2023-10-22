@@ -86,7 +86,6 @@ def train_one_epoch(model: torch.nn.Module,
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
             img_grid = torchvision.utils.make_grid(x2[:2, ...])
-            L = model.patch_embed.grid_size[0] * model.patch_embed.grid_size[1]
             attn = model.last_attn[len(model.predictor_decoder_blocks) - 1][..., 1, -L:]
             B = attn.shape[0]
             num_heads = attn.shape[1]
