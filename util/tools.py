@@ -38,7 +38,7 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
         0].cpu()
-    cmap = plt.get_cmap('jet')
+    cmap = plt.get_cmap('jet')[:, :, :3]
     return cmap(attentions)
 
 
