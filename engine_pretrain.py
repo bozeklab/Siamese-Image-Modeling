@@ -88,16 +88,15 @@ def train_one_epoch(model: torch.nn.Module,
             img_grid = torchvision.utils.make_grid(x2[:2, ...])
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
-                loss, outputs = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
+                loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
 
+            attn = attention_map_to_heatmap(attn[0])
         else:
             samples = samples.to(device, non_blocking=True)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
-                loss, _, attn = model(samples, mask_ratio=args.mask_ratio)
-
-            attn = attention_map_to_heatmap(attn[0])
+                loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
 
         loss_value = loss.item()
 
