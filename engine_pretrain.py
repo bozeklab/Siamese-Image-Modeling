@@ -136,7 +136,7 @@ def train_one_epoch(model: torch.nn.Module,
             This calibrates different curves when batch size changes.
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
-            log_writer.add_image('input_image', img_grid, global_step=epoch_1000x))
+            log_writer.add_image('input_image', img_grid, global_step=epoch_1000x)
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
             log_writer.add_scalar('grad_norm', grad_norm, epoch_1000x)
