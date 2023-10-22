@@ -162,14 +162,6 @@ class SiameseIMViT(nn.Module):
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer, init_values=self.args.init_values)
             for i in range(depth)])
 
-        self.mm_box_head = FastRCNNConvFCHead()
-        self.mm_box_projector = MLP() # head channel
-
-        # load weight
-        self.mm_box_head.load_state_dict(self.box_head.state_dict())
-        for p in self.mm_box_head.parameters():
-            p.requires_grad = False
-
         self.mm_box_projector.load_state_dict(self.box_projector.state_dict())
         for p in self.mm_box_projector.parameters():
             p.requires_grad = False
@@ -341,9 +333,6 @@ class SiameseIMViT(nn.Module):
             param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         if hasattr(self, 'mm_box_head'):
             for param_q, param_k in zip(self.mm_box_head.parameters(), self.mm_box_head.parameters()):
-                param_k.data = param_k.data * mm + param_q.data * (1. - mm)
-        if hasattr(self, 'mm_box_projector'):
-            for param_q, param_k in zip(self.mm_box_projector.parameters(), self.mm_box_projector.parameters()):
                 param_k.data = param_k.data * mm + param_q.data * (1. - mm)
         if hasattr(self, 'mm_cls_token'):
             self.mm_cls_token.data = self.mm_cls_token.data * mm + self.cls_token.data * (1. - mm)
@@ -518,20 +507,20 @@ class SiameseIMViT(nn.Module):
 
             target = target_x2[:, 1:, :]
 
-            mask = torch.all(boxes != -1, dim=-1)
-            pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes, scale_factor=1. / self.patch_size,
-                                                           mask=mask)
-            target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
-                                                             mask=mask)
+            #mask = torch.all(boxes != -1, dim=-1)
+            #pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes, scale_factor=1. / self.patch_size,
+            #                                               mask=mask)
+            #target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
+            #                                                 mask=mask)
 
-            target_boxes_features = self.mm_box_head(target_boxes_features)
-            target_boxes_features = self.mm_box_projector (target_boxes_features)
-            target = F.normalize(target_boxes_features, dim=1)
+            #target_boxes_features = self.mm_box_head(target_boxes_features)
+            #target_boxes_features = self.mm_box_projector (target_boxes_features)
+            #target = F.normalize(target_boxes_features, dim=1)
 
-        pred_boxes_features = self.box_head(pred_boxes_features)
-        pred_boxes_features = self.box_projector(pred_boxes_features)
-        pred_boxes_features = self.box_predictor(pred_boxes_features)
-        pred = F.normalize(pred_boxes_features, dim=1)
+        #pred_boxes_features = self.box_head(pred_boxes_features)
+        #pred_boxes_features = self.box_projector(pred_boxes_features)
+        #pred_boxes_features = self.box_predictor(pred_boxes_features)
+        #pred = F.normalize(pred_boxes_features, dim=1)
 
         pred = pred.reshape(-1, pred.shape[-1])
         target = target.reshape(-1, target.shape[-1])
@@ -540,7 +529,7 @@ class SiameseIMViT(nn.Module):
         outputs = {}
         with torch.cuda.amp.autocast(False):
             loss_grid = self.compute_unigrad_loss(pred.float(), target.float())
-            loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
+            #loss_boxes = self.compute_unigrad_loss(pred_boxes_features.float(), target_boxes_features.float())
             loss = loss_grid# + loss_boxes
 
         outputs['loss_sim'] = loss.item()
