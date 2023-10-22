@@ -93,8 +93,6 @@ def train_one_epoch(model: torch.nn.Module,
             vattn = visualize_attention(attn, w_featmap=14, h_featmap=14,
                                         patch_size=16, threshold=0.6)
             del attn
-
-            attn_grid = torchvision.utils.make_grid(vattn)
         else:
             samples = samples.to(device, non_blocking=True)
 
@@ -142,7 +140,7 @@ def train_one_epoch(model: torch.nn.Module,
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_image('input_image', x2[0], global_step=epoch_1000x)
-            log_writer.add_image('attn', attn_grid, global_step=epoch_1000x)
+            log_writer.add_image('attn', vattn, global_step=epoch_1000x)
 
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
