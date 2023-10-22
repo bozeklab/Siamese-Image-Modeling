@@ -486,6 +486,11 @@ class SiameseIMViT(nn.Module):
         for blk in self.predictor_decoder_blocks:
             x = blk(x)
 
+        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][..., 1, -x2_embed.shape[1]:]
+        B = attn.shape[0]
+        num_heads = attn.shape[1]
+        attn = attn.reshape((B, num_heads, self.patch_embed.grid_size[0], self.patch_embed.grid_size[1]))
+
         # predictor projection
         x = self.decoder_pred(x)
 
@@ -542,7 +547,7 @@ class SiameseIMViT(nn.Module):
         outputs['loss_sim_grid'] = loss_grid.item()
         outputs['loss_sim_boxes'] = loss_boxes.item()
 
-        return loss, outputs
+        return loss, outputs, attn
 
     def compute_unigrad_loss(self, pred, target):
         pred = self.student_norm(pred)
