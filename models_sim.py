@@ -487,7 +487,8 @@ class SiameseIMViT(nn.Module):
             x = blk(x)
 
         print('!!!')
-        attn = self.model.mae.last_attn[0]
+        print(len(self.decoder_blocks))
+        attn = self.last_attn[0]
         print(attn.shape)
 
         # predictor projection
