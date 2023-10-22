@@ -95,7 +95,7 @@ def train_one_epoch(model: torch.nn.Module,
             samples = samples.to(device, non_blocking=True)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
-                loss, _, _, attn = model(samples, mask_ratio=args.mask_ratio)
+                loss, _, attn = model(samples, mask_ratio=args.mask_ratio)
 
             attn = attention_map_to_heatmap(attn[0])
 
