@@ -162,10 +162,6 @@ class SiameseIMViT(nn.Module):
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer, init_values=self.args.init_values)
             for i in range(depth)])
 
-        self.mm_box_projector.load_state_dict(self.box_projector.state_dict())
-        for p in self.mm_box_projector.parameters():
-            p.requires_grad = False
-
         self.mm_patch_embed.load_state_dict(self.patch_embed.state_dict())
         for p in self.mm_patch_embed.parameters():
             p.requires_grad = False
