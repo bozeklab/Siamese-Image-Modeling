@@ -91,6 +91,8 @@ def train_one_epoch(model: torch.nn.Module,
                 loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
 
+            print('!!!')
+            print(attn[0].shape)
             attn = attention_map_to_heatmap(attn[0].detach().cpu().numpy())
         else:
             samples = samples.to(device, non_blocking=True)
