@@ -141,12 +141,12 @@ def train_one_epoch(model: torch.nn.Module,
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_image('input_image', x2[0], global_step=epoch_1000x)
-            for j in range(vattn.shape[0]):
-                fname = os.path.join(log_writer.log_dir, str(epoch_1000x) + "attn-head" + str(j) + ".png")
-                plt.imsave(fname=fname, arr=vattn[j], format='png')
-                print(f"{fname} saved.")
+            #for j in range(vattn.shape[0]):
+            #    fname = os.path.join(log_writer.log_dir, str(epoch_1000x) + "attn-head" + str(j) + ".png")
+            #    plt.imsave(fname=fname, arr=vattn[j], format='png')
+            #    print(f"{fname} saved.")
 
-            #log_writer.add_image('attn', vattn, global_step=epoch_1000x)
+            log_writer.add_image('attn', vattn, global_step=epoch_1000x)
 
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
