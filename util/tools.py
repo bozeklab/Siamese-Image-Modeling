@@ -40,6 +40,7 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
         0].cpu()
     cmap = plt.get_cmap('jet')
     cmap_list = [torch.tensor(cmap(attentions[i])[:, :, :3]).unsqueeze(0) for i in range(attentions.shape[0])]
+    cmap_list = [(c * 255).int() for c in cmap_list]
     return torch.cat(cmap_list, dim=0)
 
 def attention_map_to_heatmap(attention_map, cmap='hot'):
