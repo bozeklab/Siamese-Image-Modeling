@@ -19,6 +19,7 @@ from typing import Iterable
 from pathlib import Path
 
 import torch
+import torchvision
 
 import util.misc as misc
 import util.lr_sched as lr_sched
@@ -82,6 +83,9 @@ def train_one_epoch(model: torch.nn.Module,
             flip_delta_j = flip_delta_j.to(x1)
 
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
+
+            img_grid = torchvision.utils.make_grid([x0[i] for i in range(x0.shape[0])])
+            log_writer.add_image('input_image', img_grid)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
                 loss, outputs = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
