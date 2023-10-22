@@ -471,10 +471,11 @@ class SiameseIMViT(nn.Module):
         for blk in self.predictor_decoder_blocks:
             x = blk(x)
 
-        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][:, :, 0, -x2_embed.shape[1]:, -x2_embed.shape[1]:]
-
         print('!!!')
         print(attn.shape)
+
+        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][:, 0, -x2_embed.shape[1]:, -x2_embed.shape[1]:]
+
 
         # predictor projection
         x = self.decoder_pred(x)
