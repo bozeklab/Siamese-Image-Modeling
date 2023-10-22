@@ -38,8 +38,7 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
         0].cpu().numpy()
-    print(attentions)
-    return plt.get_cmap('viridis', attentions)
+    return attentions
 
 
 def attention_map_to_heatmap(attention_map, cmap='hot'):

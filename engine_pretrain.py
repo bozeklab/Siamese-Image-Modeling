@@ -16,6 +16,7 @@ import os
 import sys
 from turtle import update
 from typing import Iterable
+import matplotlib.pyplot as plt
 from pathlib import Path
 
 import torch
@@ -140,7 +141,12 @@ def train_one_epoch(model: torch.nn.Module,
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_image('input_image', x2[0], global_step=epoch_1000x)
-            log_writer.add_image('attn', vattn, global_step=epoch_1000x)
+            for j in range(attn.shape[0]):
+                fname = os.path.join(args.output_dir, "str(global_step) + attn-head" + str(j) + ".png")
+                plt.imsave(fname=fname, arr=attn[j], format='png')
+                print(f"{fname} saved.")
+
+            #log_writer.add_image('attn', vattn, global_step=epoch_1000x)
 
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
