@@ -23,6 +23,7 @@ import torchvision
 
 import util.misc as misc
 import util.lr_sched as lr_sched
+from util.tools import attention_map_to_heatmap
 
 
 def train_one_epoch(model: torch.nn.Module,
@@ -84,7 +85,13 @@ def train_one_epoch(model: torch.nn.Module,
 
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
-            img_grid = torchvision.utils.make_grid(x0[:2, ...])
+            img_grid = torchvision.utils.make_grid(x2[:2, ...])
+            L = model.patch_embed.grid_size[0] * model.patch_embed.grid_size[1]
+            attn = model.last_attn[len(model.predictor_decoder_blocks) - 1][..., 1, -L:]
+            B = attn.shape[0]
+            num_heads = attn.shape[1]
+            attn = attn.reshape((B, num_heads, model.patch_embed.grid_size[0], model.patch_embed.grid_size[1]))
+            attn = attention_map_to_heatmap(attn[0])
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
                 loss, outputs = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
@@ -137,6 +144,8 @@ def train_one_epoch(model: torch.nn.Module,
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_image('input_image', img_grid, global_step=epoch_1000x)
+            log_writer.add_image('attn', attn, global_step=epoch_1000x)
+
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
             log_writer.add_scalar('grad_norm', grad_norm, epoch_1000x)
