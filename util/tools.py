@@ -18,6 +18,8 @@ from scipy.optimize import linear_sum_assignment
 import torch.nn as nn
 
 def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, threshold=0.6):
+    print(attentions.size())
+
     bsz, nh, num_patches, _ = attentions.size()
 
     val, idx = torch.sort(attentions)
