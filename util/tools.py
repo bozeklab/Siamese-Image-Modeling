@@ -31,7 +31,7 @@ def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, thresho
     for head in range(nh):
         th_attn[head] = th_attn[head][idx2[head]]
     print('!!!')
-    print(th_attn)
+    print(th_attn.shape)
     th_attn = th_attn.reshape(nh, w_featmap, h_featmap).float()
     # interpolate
     th_attn = nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
