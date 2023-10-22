@@ -24,7 +24,7 @@ import torchvision
 import util.misc as misc
 import numpy as np
 import util.lr_sched as lr_sched
-from util.tools import attention_map_to_heatmap
+from util.tools import attention_map_to_heatmap, visualize_attention
 
 
 def train_one_epoch(model: torch.nn.Module,
@@ -86,14 +86,15 @@ def train_one_epoch(model: torch.nn.Module,
 
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
-            img_grid = torchvision.utils.make_grid(x2[:2, ...])
-
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
                 loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
                 metric_logger.update(**outputs)
 
-            attn_grid = [attention_map_to_heatmap(attn[i, 0, ...].detach().cpu().numpy()) for i in range(2)]
-            attn_grid = torchvision.utils.make_grid(attn_grid)
+            attentions = attentions[0, :, 0, 1:]
+            vattn = visualize_attention(attentions, 14, 14,
+                                        patch_size=16, threshold=0.6)
+
+            attn_grid = torchvision.utils.make_grid(vattn)
         else:
             samples = samples.to(device, non_blocking=True)
 
@@ -140,7 +141,7 @@ def train_one_epoch(model: torch.nn.Module,
             This calibrates different curves when batch size changes.
             """
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
-            log_writer.add_image('input_image', img_grid, global_step=epoch_1000x)
+            log_writer.add_image('input_image', x2[0], global_step=epoch_1000x)
             log_writer.add_image('attn', attn_grid, global_step=epoch_1000x)
 
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)

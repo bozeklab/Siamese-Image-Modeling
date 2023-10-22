@@ -15,6 +15,27 @@ from scipy import ndimage
 from torchmetrics.functional import dice
 from torchmetrics.functional.classification import binary_jaccard_index
 from scipy.optimize import linear_sum_assignment
+import torch.nn as nn
+
+def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, threshold=0.6):
+    bsz, nh, num_patches, _ = attentions.size()
+
+    val, idx = torch.sort(attentions)
+    val /= torch.sum(val, dim=1, keepdim=True)
+    cumval = torch.cumsum(val, dim=1)
+    th_attn = cumval > (1 - threshold)
+    idx2 = torch.argsort(idx)
+    for head in range(nh):
+        th_attn[head] = th_attn[head][idx2[head]]
+    th_attn = th_attn.reshape(nh, w_featmap, h_featmap).float()
+    # interpolate
+    th_attn = nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
+        0].cpu().numpy()
+
+    attentions = attentions.reshape(nh, w_featmap, h_featmap)
+    attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
+        0].cpu().numpy()
+    return attentions
 
 
 def attention_map_to_heatmap(attention_map, cmap='hot'):
@@ -37,6 +58,7 @@ def attention_map_to_heatmap(attention_map, cmap='hot'):
     # Apply the colormap to the attention map.
     heatmap = (colormap(attention_map)[:, :, :3] * 255).astype(np.uint8)
     return torch.tensor(heatmap).permute(2, 0, 1)
+
 
 def get_bounding_box(img):
     """Get bounding box coordinate information."""
