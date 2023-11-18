@@ -454,6 +454,7 @@ class SiameseIMViT(nn.Module):
             for blk in self.projector_decoder_blocks:
                 online_x1 = blk(online_x1)
 
+
         # calculate decoder pos embed
         cls_pos_embed = self.decoder_pos_embed[:, 0, :].unsqueeze(1)
         x1_vis_embed = self.decoder_pos_embed[:, 1:, :].repeat(online_x1.shape[0], 1, 1)[~mask.bool()].view(online_x1.shape[0], -1, self.decoder_pos_embed.shape[-1])
@@ -471,7 +472,6 @@ class SiameseIMViT(nn.Module):
         for blk in self.predictor_decoder_blocks:
             x = blk(x)
 
-        attn = self.last_attn[len(self.predictor_decoder_blocks) - 1][:, :, 0, -x2_embed.shape[1]:]
 
         # predictor projection
         x = self.decoder_pred(x)
@@ -491,6 +491,8 @@ class SiameseIMViT(nn.Module):
             # forward target encoder
             for blk in self.mm_blocks:
                 target_x2 = blk(target_x2)
+
+            attn = self.last_attn[len(self.mm_blocks) - 1][:, :, 0]
 
             # forward target projector
             target_x2 = self.mm_decoder_embed(target_x2)
