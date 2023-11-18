@@ -21,7 +21,7 @@ import torch.nn as nn
 def visualize_attention(attentions, w_featmap, h_featmap, patch_size=16, threshold=0.6):
     bsz, nh, num_patches = attentions.size()
 
-    attentions = attentions[0]
+    attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
 
     val, idx = torch.sort(attentions)
     val /= torch.sum(val, dim=1, keepdim=True)

@@ -492,7 +492,7 @@ class SiameseIMViT(nn.Module):
             for blk in self.mm_blocks:
                 target_x2 = blk(target_x2)
 
-            attn = self.last_attn[len(self.mm_blocks) - 1][:, :, 0]
+            attn = self.last_attn[len(self.mm_blocks) - 1]
 
             # forward target projector
             target_x2 = self.mm_decoder_embed(target_x2)
@@ -500,7 +500,7 @@ class SiameseIMViT(nn.Module):
                 for blk in self.mm_projector_decoder_blocks:
                     target_x2 = blk(target_x2)
 
-            target = target_x2[0, :, 0, 1:]
+            target = target_x2[:, 1:, :]
 
             #mask = torch.all(boxes != -1, dim=-1)
             #pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes, scale_factor=1. / self.patch_size,
