@@ -206,7 +206,7 @@ class SiameseIMViT(nn.Module):
 
     @property
     def last_attn(self):
-        return torch.stack([block.attn.last_attn for block in self.predictor_decoder_blocks], dim=0)
+        return torch.stack([block.attn.last_attn for block in self.mm_blocks], dim=0)
 
     def initialize_weights(self):
         # initialization
