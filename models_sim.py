@@ -62,10 +62,6 @@ class SiameseIMViT(nn.Module):
         # Encoder grid embedding
         self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
 
-        # Boxes embedding
-        self.box_head = FastRCNNConvFCHead()
-        self.box_projector = MLP()  # head channel
-        self.box_predictor = MLP()
 
         self.num_patches = self.patch_embed.num_patches
 
@@ -206,7 +202,7 @@ class SiameseIMViT(nn.Module):
 
     @property
     def last_attn(self):
-        return torch.stack([block.attn.last_attn for block in self.mm_blocks], dim=0)
+        return torch.stack([block.attn.last_attn for block in self.blocks], dim=0)
 
     def initialize_weights(self):
         # initialization
@@ -427,6 +423,20 @@ class SiameseIMViT(nn.Module):
         else:
             return self.forward_mae(*args, **kwargs)
 
+    def get_last_selfattention(self, image):
+        with torch.no_grad():
+            online_x1 = self.patch_embed(image)
+            cls_tokens = self.cls_token.expand(online_x1.shape[0], -1, -1)
+            online_x1 = torch.cat((cls_tokens, online_x1), dim=1)
+            online_x1 = online_x1 + self.pos_embed
+
+            # forward target encoder
+            for blk in self.blocks:
+                online_x1 = blk(online_x1)
+
+            return self.last_attn[len(self.blocks) - 1]
+
+
     def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, mask=None):
         # forward online encoder
         if self.args.with_blockwise_mask:
@@ -501,21 +511,6 @@ class SiameseIMViT(nn.Module):
                     target_x2 = blk(target_x2)
 
             target = target_x2[:, 1:, :]
-
-            #mask = torch.all(boxes != -1, dim=-1)
-            #pred_boxes_features = self.extract_box_feature(x=pred, boxes_info=boxes, scale_factor=1. / self.patch_size,
-            #                                               mask=mask)
-            #target_boxes_features = self.extract_box_feature(x=target, boxes_info=boxes, scale_factor=1. / self.patch_size,
-            #                                                 mask=mask)
-
-            #target_boxes_features = self.mm_box_head(target_boxes_features)
-            #target_boxes_features = self.mm_box_projector (target_boxes_features)
-            #target = F.normalize(target_boxes_features, dim=1)
-
-        #pred_boxes_features = self.box_head(pred_boxes_features)
-        #pred_boxes_features = self.box_projector(pred_boxes_features)
-        #pred_boxes_features = self.box_predictor(pred_boxes_features)
-        #pred = F.normalize(pred_boxes_features, dim=1)
 
         pred = pred.reshape(-1, pred.shape[-1])
         target = target.reshape(-1, target.shape[-1])
