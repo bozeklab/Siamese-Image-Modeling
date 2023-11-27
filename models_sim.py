@@ -469,7 +469,6 @@ class SiameseIMViT(nn.Module):
             for blk in self.projector_decoder_blocks:
                 online_x1 = blk(online_x1)
 
-
         # calculate decoder pos embed
         cls_pos_embed = self.decoder_pos_embed[:, 0, :].unsqueeze(1)
         x1_vis_embed = self.decoder_pos_embed[:, 1:, :].repeat(online_x1.shape[0], 1, 1)[~mask.bool()].view(online_x1.shape[0], -1, self.decoder_pos_embed.shape[-1])
