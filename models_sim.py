@@ -420,15 +420,12 @@ class SiameseIMViT(nn.Module):
 
     def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, attn_mask=None, mask=None):
         # forward online encoder
-        online_x1 = self.patch_embed(x1)
-        online_x1 = online_x1 + self.pos_embed[:, 1:, :]
-
         if attn_mask is not None:
             masking_prob, pred_shape, show_max = attn_mask
 
             with torch.no_grad():
                 # forward online encoder
-                attentions = self.get_last_selfattention(online_x1)
+                attentions = self.get_last_selfattention(x1.clone())
 
             cls_attention = attentions[:, :, 0, 1:].mean(1).detach().clone()
 
@@ -451,6 +448,8 @@ class SiameseIMViT(nn.Module):
             assert False
             mask, ids_restore1 = self.random_masking(online_x1, self.args.mask_ratio)
 
+        online_x1 = self.patch_embed(x1)
+        online_x1 = online_x1 + self.pos_embed[:, 1:, :]
         online_x1 = online_x1[~mask.bool()].view(online_x1.shape[0], -1, online_x1.shape[-1])
 
         # add cls token
