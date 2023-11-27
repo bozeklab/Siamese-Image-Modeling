@@ -47,7 +47,11 @@ def train_one_epoch(model: torch.nn.Module,
         print('log_dir: {}'.format(log_writer.log_dir))
 
     for data_iter_step, data in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
-        if args.with_blockwise_mask:
+        attn_mask = args.pred_shape in ['attmask_high', 'attmask_hint', 'attmask_low']
+        if attn_mask:
+            samples, mask = data
+            mask = None
+        elif args.with_blockwise_mask:
             samples, mask = data
         else:
             samples, labels = data
@@ -88,7 +92,7 @@ def train_one_epoch(model: torch.nn.Module,
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
-                loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, mask=mask)
+                loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, attn_mask=attn_mask, mask=mask)
                 metric_logger.update(**outputs)
 
             #vattn = visualize_attention(attn, w_featmap=14, h_featmap=14,

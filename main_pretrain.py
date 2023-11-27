@@ -121,6 +121,11 @@ def get_args_parser():
     parser.add_argument('--dist_url', default='env://',
                         help='url used to set up distributed training')
 
+    # Attention parameters
+    parser.add_argument('--masking_prob', type=float, default=0.5, help=""""Perform token masking 
+                        based on attention with specific probability, works only for --pred_shape attmask_high, attmask_hint, attmask_low""")
+    parser.add_argument('--show_max', type=float, default=0.1, help="The top salient tokens from which a random sample will be revealed")
+
     # SiameseIM parameters
     # data
     parser.add_argument('--crop_min', default=0.2, type=float)
@@ -142,6 +147,8 @@ def get_args_parser():
 
     parser.add_argument('--with_blockwise_mask', default=False, action='store_true')
     parser.add_argument('--blockwise_num_masking_patches', default=75, type=int)
+    parser.add_argument('--pred_shape', default=None, type=str, help="""Shape of partial prediction. 
+                        Select between attmask_high, attmask_hint, attmask_low, rand or block""")
 
     # hyper-parameter
     parser.add_argument('--mm', default=0.996, type=float)

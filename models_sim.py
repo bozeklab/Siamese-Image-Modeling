@@ -19,6 +19,7 @@ import math
 import torch
 import torch.nn as nn
 
+from attnmask import AttMask, get_pred_ratio
 from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
@@ -51,6 +52,7 @@ class SiameseIMViT(nn.Module):
                  mlp_ratio=4., norm_layer=LayerNorm, norm_pix_loss=False, args=None):
         super().__init__()
         self.norm_pix_loss = norm_pix_loss
+        self.img_size = img_size
         self.patch_size = patch_size
         self.embed_dim = embed_dim
         self.args = args
@@ -61,7 +63,6 @@ class SiameseIMViT(nn.Module):
 
         # Encoder grid embedding
         self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
-
 
         self.num_patches = self.patch_embed.num_patches
 
@@ -269,26 +270,6 @@ class SiameseIMViT(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], 3, h * p, h * p))
         return imgs
 
-    def extract_box_feature(self, x, boxes_info, scale_factor, mask):
-        h, w = self.patch_embed.grid_size
-        num_box = boxes_info.shape[1]
-        batch_size = x.shape[0]
-        x = x.view(batch_size, h, w, self.embed_dim).permute(0, 3, 1, 2)
-
-        batch_index = torch.arange(0.0, batch_size).repeat(num_box).view(num_box, -1) \
-            .transpose(0, 1).flatten(0, 1).to(x.device)
-        roi_box_info = boxes_info.view(-1, 4).to(x.device)
-
-        roi_info = torch.stack((batch_index, roi_box_info[:, 0],
-                                roi_box_info[:, 1], roi_box_info[:, 2],
-                                roi_box_info[:, 3]), dim=1).to(x.device)
-        aligned_out = roi_align(input=x, boxes=roi_info, spatial_scale=scale_factor,
-                                output_size=7)
-
-        aligned_out = aligned_out.view(batch_size, num_box, self.embed_dim, 7, 7)[mask]
-        aligned_out.view(-1, self.embed_dim, 7, 7)
-
-        return aligned_out
 
     def random_masking(self, x, mask_ratio):
         """
@@ -437,17 +418,39 @@ class SiameseIMViT(nn.Module):
             return self.last_attn[len(self.blocks) - 1]
 
 
-    def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, mask=None):
+    def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, attn_mask=None, mask=None):
         # forward online encoder
-        if self.args.with_blockwise_mask:
+        online_x1 = self.patch_embed(x1)
+        online_x1 = online_x1 + self.pos_embed[:, 1:, :]
+
+        if attn_mask is not None:
+            masking_prob, pred_shape, show_max = attn_mask
+
+            with torch.no_grad():
+                # forward online encoder
+                attentions = self.get_last_selfattention(online_x1)
+
+            cls_attention = attentions[:, :, 0, 1:].mean(1).detach().clone()
+
+            # Get AttMask. cls_attention should be in shape (batch_size, number_of_tokens)
+            masks = AttMask(cls_attention,
+                            masking_prob,
+                            pred_shape,
+                            get_pred_ratio(),
+                            # For each sample in the batch we perform the same masking ratio
+                            show_max * get_pred_ratio(),
+                            show_max)
+
+            mask = masks.reshape(-1, self.patch_embed.grid_size[0], self.patch_embed.grid_size[1]).squeeze()
+            mask = mask.cuda()
+
+        elif self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
             mask = mask.view(mask.shape[0], -1)
         else:
             assert False
             mask, ids_restore1 = self.random_masking(online_x1, self.args.mask_ratio)
-        
-        online_x1 = self.patch_embed(x1)
-        online_x1 = online_x1 + self.pos_embed[:, 1:, :]
+
         online_x1 = online_x1[~mask.bool()].view(online_x1.shape[0], -1, online_x1.shape[-1])
 
         # add cls token

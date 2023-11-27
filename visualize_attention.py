@@ -18,9 +18,11 @@ import cv2
 import random
 import colorsys
 import requests
+import matplotlib.pyplot as plt
 from io import BytesIO
 
 import skimage.io
+from matplotlib.colors import ListedColormap
 from skimage.measure import find_contours
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
@@ -34,6 +36,7 @@ from PIL import Image
 import util
 import models_dino as dino
 import models_sim
+from attnmask import AttMask, get_pred_ratio
 
 
 def apply_mask(image, mask, color, alpha=0.5):
@@ -95,6 +98,32 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     print(f"{fname} saved.")
     return
 
+def gray_out_square(image, x_start, y_start, size, alpha):
+    # Get the dimensions of the image tensor
+    _, height, width = image.shape
+
+
+    # Calculate the end coordinates of the square region
+    x_end = min(x_start + size, width)
+    y_end = min(y_start + size, height)
+
+    # Create a gray overlay image
+    gray_overlay = alpha * image[:, x_start:x_end, y_start:y_end]
+
+    # Replace the square region with the gray overlay
+    image[:, x_start:x_end, y_start:y_end] = gray_overlay
+
+    return image
+
+
+def gray_out_mask(image, mask, patch_size, alpha):
+    mh, mw = mask.shape
+
+    for i in range(mh):
+        for j in range(mw):
+            if mask[i][j]:
+                image = gray_out_square(image, i * patch_size, j * patch_size, patch_size, alpha)
+    return image
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Visualize Self-Attention maps')
@@ -108,14 +137,23 @@ if __name__ == '__main__':
         help='Key to use in the checkpoint (example: "model")')
     parser.add_argument("--image_size", default=(224, 224), type=int, nargs="+", help="Resize image.")
     parser.add_argument('--output_dir', default='debug/', help='Path where to save visualizations.')
-    parser.add_argument("--threshold", type=float, default=0.6, help="""We visualize masks
+    parser.add_argument("--threshold", type=float, default=0.75, help="""We visualize masks
         obtained by thresholding the self-attention maps to keep xx% of the mass.""")
     # model
     parser.add_argument('--decoder_embed_dim', default=768, type=int)
     parser.add_argument('--drop_path_rate', default=0.0, type=float)
+    parser.add_argument('--pred_shape', default='attmask_high', type=str, help="""Shape of partial prediction. 
+                        Select between attmask_high, attmask_hint, attmask_low, rand or block""")
     parser.add_argument('--init_values', default=None, type=float)
     parser.add_argument('--projector_depth', default=2, type=int)
     parser.add_argument('--predictor_depth', default=4, type=int)
+
+    # Attention parameters
+    parser.add_argument('--masking_prob', type=float, default=0.7, help=""""Perform token masking 
+                        based on attention with specific probability, works only for --pred_shape attmask_high, attmask_hint, attmask_low""")
+    parser.add_argument('--show_max', type=float, default=0.1,
+                        help="The top salient tokens from which a random sample will be revealed")
+
     parser.add_argument('--use_proj_ln', default=False, action='store_true')
     parser.add_argument('--loss_type', default='mae')
     parser.add_argument('--use_pred_ln', default=False, action='store_true')
@@ -189,6 +227,41 @@ if __name__ == '__main__':
 
     attentions = model.get_last_selfattention(img.to(device))
 
+    cls_attention = attentions[:, :, 0, 1:].mean(1).detach().clone()
+
+    # Get AttMask. cls_attention should be in shape (batch_size, number_of_tokens)
+    masks = AttMask(cls_attention,
+                    args.masking_prob,
+                    args.pred_shape,
+                    get_pred_ratio(),
+                    # For each sample in the batch we perform the same masking ratio
+                    args.show_max * get_pred_ratio(),
+                    args.show_max)
+
+    masks = masks.reshape(-1, args.image_size[0] // args.patch_size, args.image_size[1] // args.patch_size).squeeze()
+    print(masks)
+
+    # Convert the boolean tensor to a float tensor
+    float_tensor = masks.float()
+
+    # Define a custom colormap with two colors (e.g., white and red)
+    colors = ['white', 'red']
+    cmap = ListedColormap(colors)
+
+    # Display the heatmap with the custom colormap
+    plt.imshow(float_tensor, cmap=cmap, interpolation='nearest')
+    plt.title('Boolean Tensor Heatmap')
+    plt.colorbar(ticks=[0, 1], format="%g", orientation='vertical')
+    plt.show()
+
+    with open(args.image_path, 'rb') as f:
+        imgo = Image.open(f)
+        imgo = imgo.convert('RGB')
+        imgo = transform(imgo)
+    img1 = gray_out_mask(imgo, masks, 16, alpha=0.5)
+    from torchvision import transforms
+    to_pil_transform = transforms.ToPILImage()
+    to_pil_transform(img1).show()
 
     nh = attentions.shape[1] # number of head
 
@@ -210,6 +283,7 @@ if __name__ == '__main__':
 
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
+
 
     # save attentions heatmaps
     os.makedirs(args.output_dir, exist_ok=True)
