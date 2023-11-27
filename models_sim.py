@@ -407,9 +407,11 @@ class SiameseIMViT(nn.Module):
     def get_last_selfattention(self, image):
         with torch.no_grad():
             online_x1 = self.patch_embed(image)
-            cls_tokens = self.cls_token.expand(online_x1.shape[0], -1, -1)
+            online_x1 = online_x1 + self.pos_embed[:, 1:, :]
+
+            # add cls token
+            cls_tokens = self.cls_token.expand(online_x1.shape[0], -1, -1) + self.pos_embed[:, 0, :].unsqueeze(1)
             online_x1 = torch.cat((cls_tokens, online_x1), dim=1)
-            online_x1 = online_x1 + self.pos_embed
 
             # forward target encoder
             for blk in self.blocks:
