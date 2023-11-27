@@ -31,7 +31,7 @@ def get_mask(attention, masking_prob, masking_mode, masking_ratio):
 
     # Mask a subset based on masking_prob threshold
     generator = torch.rand(attention.shape[0], device=attention.device)
-    token_mask[generator > masking_prob] = True
+    token_mask[generator > masking_prob] = False
 
     return token_mask
 
