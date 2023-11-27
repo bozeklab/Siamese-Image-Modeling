@@ -51,6 +51,7 @@ def train_one_epoch(model: torch.nn.Module,
             attn_mask = (args.masking_prob, args.pred_shape, args.show_max)
             samples, mask = data
         elif args.with_blockwise_mask:
+            attn_mask = None
             samples, mask = data
         else:
             attn_mask = None
