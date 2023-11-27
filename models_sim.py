@@ -439,6 +439,7 @@ class SiameseIMViT(nn.Module):
                             show_max)
 
             mask = masks.reshape(-1, self.patch_embed.grid_size[0], self.patch_embed.grid_size[1]).squeeze()
+            mask = mask.view(mask.shape[0], -1)
             mask = mask.cuda()
 
         elif self.args.with_blockwise_mask:
