@@ -48,16 +48,12 @@ def train_one_epoch(model: torch.nn.Module,
 
     for data_iter_step, data in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         if args.pred_shape in ['attmask_high', 'attmask_hint', 'attmask_low']:
-            attn = (args.masking_prob, args.pred_shape, args.show_max)
-        else:
-            attn = None
-        if attn_mask:
-            samples, mask = data
-            mask = None
+            attn_mask = (args.masking_prob, args.pred_shape, args.show_max)
         elif args.with_blockwise_mask:
             samples, mask = data
         else:
-            samples, labels = data
+            attn_mask = None
+            samples, mask = data
             mask = None
 
         # we use a per iteration (instead of per epoch) lr scheduler
