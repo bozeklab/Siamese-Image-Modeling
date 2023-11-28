@@ -52,7 +52,7 @@ def attention_masking(attention, masking_mode, masking_ratio):
     return attn_mask
 
 
-def get_pred_ratio(pred_ratio=0.3, pred_ratio_var=0.0):
+def get_pred_ratio(pred_ratio=0.6, pred_ratio_var=0.0):
     if isinstance(pred_ratio, list):
         pred_ratio = []
         for prm, prv in zip(pred_ratio, pred_ratio_var):
