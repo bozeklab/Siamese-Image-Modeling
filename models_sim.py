@@ -419,8 +419,7 @@ class SiameseIMViT(nn.Module):
 
             return self.last_attn[len(self.blocks) - 1]
 
-
-    def forward_sim(self, x1, x2, boxes, rel_pos_21, mm, update_mm, attn_mask=None, mask=None):
+    def forward_sim(self, x1, x2, rel_pos_21, mm, update_mm, attn_mask=None, mask=None):
         # forward online encoder
         if attn_mask is not None:
             masking_prob, pred_shape, show_max = attn_mask

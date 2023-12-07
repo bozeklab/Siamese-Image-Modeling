@@ -12,9 +12,8 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.utils import draw_bounding_boxes
 
-from main_pretrain import DataAugmentationBoxesForSIMTraining, DataAugmentationForSIMFinetune
-from util.datasets import ImagenetWithMask
-from util.img_with_pickle_dataset import ImgWithPickledBoxesAndClassesDataset
+from main_pretrain import DataAugmentationBoxesForSIMTraining, DataAugmentationForSIM
+from util.datasets import ImagenetWithMask, ImagenetPlainWithMask
 
 
 def add_border(image):
@@ -39,10 +38,10 @@ def gray_out_square(image, x_start, y_start, size, alpha):
     y_end = min(y_start + size, height)
 
     # Create a gray overlay image
-    gray_overlay = alpha * image[y_start:y_end, x_start:x_end]
+    gray_overlay = alpha * image[x_start:x_end, y_start:y_end]
 
     # Replace the square region with the gray overlay
-    image[y_start:y_end, x_start:x_end] = gray_overlay
+    image[x_start:x_end, y_start:y_end] = gray_overlay
 
     return image
 
@@ -57,7 +56,7 @@ def gray_out_mask(image, mask, patch_size, alpha):
     return image
 
 
-def create_image_grid(images, num_cols=2):
+def create_image_grid(images, num_cols=3):
     # Determine the dimensions of each image in the grid
     rows, cols, _ = images[0].shape
 
@@ -149,17 +148,16 @@ def draw_crop_boxes(images, crops):
     return annotated_images
 
 
-def draw_bboxes(images, boxes, classes):
+def draw_bboxes(images, boxes):
     annotated_images = []
 
     boxes = boxes.float()
 
-    nuclei_types = {0: "neo", 1: "inflam", 2: "conn", 3: "dead", 4: "epith"}
-
     for idx, image in enumerate(images):
+        labels = [str(num) for num in list(range(boxes[idx].shape[0]))]
         mask = torch.all(boxes[idx] != -1, dim=1)
-        labels = [f"{i[0]}, {nuclei_types[i[1].item()]}" for i in enumerate(classes[idx, mask])]
-        labels = np.array(labels).tolist()
+        labels = np.array(labels)
+        labels = labels[mask].tolist()
 
         annotated_image = draw_bounding_boxes(denormalize(image), boxes[idx, mask, :], labels=labels,
                                               width=1, colors="red")
@@ -173,6 +171,7 @@ def tensor_batch_to_list(tensor):
     tensor_list = [t for t in tensor]
     return tensor_list
 
+
 @dataclass
 class Config:
     data_path: str
@@ -184,21 +183,23 @@ class Config:
     batch_size: int
 
 
-args = Config(data_path='/Users/piotrwojcik/Downloads/fold_1_256_cls/positive/', input_size=224, with_blockwise_mask=True,
+args = Config(data_path='/Users/piotrwojcik/TCGA_images/', input_size=256, with_blockwise_mask=True,
               blockwise_num_masking_patches=127, crop_min=0.2, num_boxes=150, batch_size=2)
 
 if __name__ == '__main__':
-    transform_train = DataAugmentationForSIMFinetune(args, is_training=True)
+    transform_train = DataAugmentationForSIM(args)
     print(f'Pre-train data transform:\n{transform_train}')
 
-    dataset_finetune = ImgWithPickledBoxesAndClassesDataset(os.path.join(args.data_path),
-                                                            ds_type='pannuke',
-                                                            transform=transform_train)
-    print(f'Build dataset: train images = {len(dataset_finetune)}')
+    dataset_train = ImagenetPlainWithMask(os.path.join(args.data_path),
+                                          input_size=args.input_size,
+                                          transform=transform_train,
+                                          with_blockwise_mask=args.with_blockwise_mask,
+                                          blockwise_num_masking_patches=args.blockwise_num_masking_patches)
+    print(f'Build dataset: train images = {len(dataset_train)}')
 
-    sampler_finetune = RandomSampler(dataset_finetune)
-    dataloader_finetune = torch.utils.data.DataLoader(
-        dataset_finetune, sampler=sampler_finetune,
+    sampler_train = RandomSampler(dataset_train)
+    dataloader_train = torch.utils.data.DataLoader(
+        dataset_train, sampler=sampler_train,
         batch_size=args.batch_size,
         num_workers=1,
         pin_memory=True,
@@ -207,16 +208,31 @@ if __name__ == '__main__':
 
     images = []
 
-    for idx, data in enumerate(dataloader_finetune):
-        samples = data
+    for idx, data in enumerate(dataloader_train):
+        samples, mask = data
         x0 = samples['x0']
         x1 = samples['x1']
-        boxes0 = samples['boxes0']
-        boxes1 = samples['boxes1']
-        classes = samples['classes']
+        x2 = samples['x2']
+        i1, i2 = samples['i1'], samples['i2']
+        j1, j2 = samples['j1'], samples['j2']
+        h1, h2 = samples['h1'], samples['h2']
+        w1, w2 = samples['w1'], samples['w2']
+
+        crops = torch.concat([i1.unsqueeze(dim=1),
+                              j1.unsqueeze(dim=1),
+                              h1.unsqueeze(dim=1),
+                              w1.unsqueeze(dim=1),
+                              i2.unsqueeze(dim=1),
+                              j2.unsqueeze(dim=1),
+                              h2.unsqueeze(dim=1),
+                              w2.unsqueeze(dim=1)], dim=1)
+
+        relative_flip = samples['relative_flip']
+        flip_delta_j = samples['flip_delta_j']
 
         img0 = x0.permute(0, 2, 3, 1)
         img1 = x1.permute(0, 2, 3, 1)
+        img2 = x2.permute(0, 2, 3, 1)
 
         patch_size = 16
 
@@ -225,10 +241,13 @@ if __name__ == '__main__':
 
         img0 = tensor_batch_to_list(img0)
         img1 = tensor_batch_to_list(img1)
+        img2 = tensor_batch_to_list(img2)
 
-        img0 = draw_bboxes(img0, boxes=boxes0, classes=classes)
-        img1 = draw_bboxes(img1, boxes=boxes1, classes=classes)
-        imgs = interleave_lists(img0, img1)
+        mask = tensor_batch_to_list(mask)
+
+        #img0 = draw_crop_boxes(img0, crops)
+        img1 = [gray_out_mask(img, mask, patch_size, alpha=0.5) for img, mask in zip(img1, mask)]
+        imgs = interleave_lists(img0, img1, img2)
         images.extend(imgs)
         if idx == 1:
             break

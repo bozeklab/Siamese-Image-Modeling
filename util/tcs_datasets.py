@@ -183,7 +183,7 @@ class ImagenetTCSDataset(ImageNetTCSDatasetQK):
 if __name__ == '__main__':
     transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(0.5),
+        transforms.RandomHorizontalFlipBoxes(0.5),
         transforms.ToTensor(),
         transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
     ])

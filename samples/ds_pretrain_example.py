@@ -12,7 +12,7 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.utils import draw_bounding_boxes
 
-from main_pretrain import DataAugmentationForSIMTraining
+from main_pretrain import DataAugmentationBoxesForSIMTraining
 from util.datasets import ImagenetWithMask
 
 
@@ -38,10 +38,10 @@ def gray_out_square(image, x_start, y_start, size, alpha):
     y_end = min(y_start + size, height)
 
     # Create a gray overlay image
-    gray_overlay = alpha * image[y_start:y_end, x_start:x_end]
+    gray_overlay = alpha * image[x_start:x_end, y_start:y_end]
 
     # Replace the square region with the gray overlay
-    image[y_start:y_end, x_start:x_end] = gray_overlay
+    image[x_start:x_end, y_start:y_end] = gray_overlay
 
     return image
 
@@ -187,7 +187,7 @@ args = Config(data_path='/Users/piotrwojcik/Downloads/fold_3_256/positive/', inp
               blockwise_num_masking_patches=127, crop_min=0.2, num_boxes=150, batch_size=2)
 
 if __name__ == '__main__':
-    transform_train = DataAugmentationForSIMTraining(args)
+    transform_train = DataAugmentationBoxesForSIMTraining(args)
     print(f'Pre-train data transform:\n{transform_train}')
 
     dataset_train = ImagenetWithMask(os.path.join(args.data_path),
@@ -210,6 +210,7 @@ if __name__ == '__main__':
 
     for idx, data in enumerate(dataloader_train):
         samples, mask = data
+        print(mask.shape)
         x0 = samples['x0']
         x1 = samples['x1']
         x2 = samples['x2']

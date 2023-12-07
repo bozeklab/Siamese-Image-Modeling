@@ -41,9 +41,9 @@ from timm.optim import create_optimizer
 
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
-from util.augmentation import GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlip, Solarize, \
-    Resize, RandomHorizontalFlipForMaps
-from util.datasets import ImagenetWithMask
+from util.augmentation import GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlipBoxes, Solarize, \
+    Resize, RandomHorizontalFlipForMaps, RandomHorizontalFlip
+from util.datasets import ImagenetWithMask, ImagenetPlainWithMask
 import models_sim
 from engine_pretrain import train_one_epoch
 
@@ -319,7 +319,7 @@ class DataAugmentationForSIMFinetune(object):
         self.is_training = is_training
 
         self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
-        self.random_flip = RandomHorizontalFlip()
+        self.random_flip = RandomHorizontalFlipBoxes()
         self.resize = Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR)
         self.to_tensor = transforms.ToTensor()
 
@@ -361,12 +361,12 @@ class DataAugmentationForSIMFinetune(object):
         return repr
 
 
-class DataAugmentationForSIMTraining(object):
+class DataAugmentationBoxesForSIMTraining(object):
     def __init__(self, args):
         self.args = args
 
         self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
-        self.random_flip = RandomHorizontalFlip()
+        self.random_flip = RandomHorizontalFlipBoxes()
         self.resize = Resize(size=args.input_size, interpolation=PIL.Image.BILINEAR)
         self.to_tensor = transforms.ToTensor()
 
@@ -434,6 +434,75 @@ class DataAugmentationForSIMTraining(object):
         return repr
 
 
+class DataAugmentationForSIM(object):
+    def __init__(self, args):
+        self.args = args
+
+        self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
+        self.random_flip = RandomHorizontalFlip()
+
+        self.color_transform1 = transforms.Compose([
+            transforms.RandomApply([
+                transforms.ColorJitter(0.4, 0.4, 0.2, 0.1)  # not strengthened
+            ], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([.1, 2.])], p=1.0),
+        ])
+
+        self.color_transform2 = transforms.Compose([
+            transforms.RandomApply([
+                transforms.ColorJitter(0.4, 0.4, 0.2, 0.1)  # not strengthened
+            ], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.1),
+            transforms.RandomApply([Solarize()], p=0.2),
+        ])
+
+        self.format_transform = transforms.Compose([
+            transforms.ToTensor(),
+            #transforms.Normalize(
+            #    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+    def __call__(self, image):
+        spatial_image1, flip1 = self.random_flip(image)
+        spatial_image2, flip2 = self.random_flip(image)
+        spatial_image1, i1, j1, h1, w1, W = self.random_resized_crop(spatial_image1, boxes=None)
+        spatial_image2, i2, j2, h2, w2, W = self.random_resized_crop(spatial_image2, boxes=None)
+        color_image1 = self.color_transform1(spatial_image1)
+        color_image2 = self.color_transform2(spatial_image2)
+
+        relative_flip = (flip1 and not flip2) or (flip2 and not flip1)
+
+        return {
+            'x0': self.format_transform(image),
+            'x1': self.format_transform(color_image1),
+            'x2': self.format_transform(color_image2),
+            'i1': i1,
+            'i2': i2,
+            'j1': j1,
+            'j2': j2,
+            'h1': h1,
+            'h2': h2,
+            'w1': w1,
+            'w2': w2,
+            'flip1': flip1,
+            'flip2': flip2,
+            'delta_i': (i2 - i1) / h1,
+            'delta_j': (j2 - j1) / w1,
+            'delta_h': h2 / h1,
+            'delta_w': w2 / w1,
+            'relative_flip': relative_flip,
+            'flip_delta_j': (W - j1 - j2) / w1,
+        }
+
+    def __repr__(self):
+        repr = "(DataAugmentation,\n"
+        repr += "  transform = %s,\n" % str(self.random_resized_crop) + str(self.random_flip) + str(self.color_transform1) + str(self.format_transform)
+        repr += ")"
+        return repr
+
+
 def main(args):
     misc.init_distributed_mode(args)  # need change to torch.engine
 
@@ -455,7 +524,7 @@ def main(args):
 
     # build augmentation and dataset
     if args.loss_type in ['sim']:
-        transform_train = DataAugmentationForSIMTraining(args)
+        transform_train = DataAugmentationForSIM(args)
     else:
         transform_train = transforms.Compose([
             transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
@@ -464,11 +533,11 @@ def main(args):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     if not args.use_tcs_dataset:
         # dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-        dataset_train = ImagenetWithMask(os.path.join(args.data_path),
-                                         input_size=args.input_size,
-                                         transform=transform_train,
-                                         with_blockwise_mask=args.with_blockwise_mask,
-                                         blockwise_num_masking_patches=args.blockwise_num_masking_patches)
+        dataset_train = ImagenetPlainWithMask(os.path.join(args.data_path),
+                                              input_size=args.input_size,
+                                              transform=transform_train,
+                                              with_blockwise_mask=args.with_blockwise_mask,
+                                              blockwise_num_masking_patches=args.blockwise_num_masking_patches)
     else:  # for internal use only
         from util.tcs_datasets import ImagenetTCSDataset
         dataset_train = ImagenetTCSDataset('train',

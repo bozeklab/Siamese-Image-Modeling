@@ -6,6 +6,26 @@ from PIL import Image
 import pickle
 
 
+class ImgDataset(datasets.VisionDataset):
+    def __init__(self, root, transform):
+        super(ImgDataset, self).__init__(root, transform=transform)
+
+        self.root = root
+        self.transform = transform
+
+        self.file_list = [filename for filename in os.listdir(self.root) if filename.endswith('.png')]
+
+    def __getitem__(self, index):
+        filename = self.file_list[index]
+        image_path = os.path.join(self.root, filename)
+
+        image = Image.open(image_path).convert('RGB')
+        return self.transform(image)
+
+    def __len__(self):
+        return len(self.file_list)
+
+
 class ImgWithPickledBoxesDataset(datasets.VisionDataset):
     def __init__(self, root, transform):
         super(ImgWithPickledBoxesDataset, self).__init__(root, transform=transform)

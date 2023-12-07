@@ -17,7 +17,7 @@ from torchvision import datasets, transforms
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
-from util.img_with_pickle_dataset import ImgWithPickledBoxesDataset
+from util.img_with_pickle_dataset import ImgWithPickledBoxesDataset, ImgDataset
 
 
 def build_transform(is_train, args):
@@ -58,6 +58,36 @@ def build_transform(is_train, args):
 
 
 class ImagenetWithMask(ImgWithPickledBoxesDataset):
+    def __init__(self, root,
+                 transform=None,
+                 with_blockwise_mask=False, ### !!! set to True, enable blockwise masking
+                 blockwise_num_masking_patches=75, ### !!! 75 / 196 = 0.38 -> Modify this to increase mask ratio
+                 input_size=224, patch_size=16, # no need to change now
+                 max_mask_patches_per_block=None, # BEiT default setting, no need to change
+                 min_mask_patches_per_block=16, # BEiT default setting, no need to change
+                 fixed_num_masking_patches=True, ### set to true, fixed number of masking patch to blockwise_num_masking_patches for sim training
+                 ):
+        super().__init__(root, transform=transform)
+        self.with_blockwise_mask = with_blockwise_mask
+        if with_blockwise_mask:
+            from .masking_generator import MaskingGenerator
+            window_size = input_size // patch_size
+            self.masked_position_generator = MaskingGenerator(
+                (window_size, window_size),
+                num_masking_patches=blockwise_num_masking_patches,
+                max_num_patches=max_mask_patches_per_block,
+                min_num_patches=min_mask_patches_per_block,
+                fixed_num_masking_patches=fixed_num_masking_patches
+            )
+
+    def __getitem__(self, index):
+        sample = super().__getitem__(index)
+        if self.with_blockwise_mask:
+            return sample, self.masked_position_generator()
+        return sample
+
+
+class ImagenetPlainWithMask(ImgDataset):
     def __init__(self, root,
                  transform=None,
                  with_blockwise_mask=False, ### !!! set to True, enable blockwise masking

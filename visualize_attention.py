@@ -125,6 +125,7 @@ def gray_out_mask(image, mask, patch_size, alpha):
                 image = gray_out_square(image, i * patch_size, j * patch_size, patch_size, alpha)
     return image
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Visualize Self-Attention maps')
     parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
@@ -142,7 +143,7 @@ if __name__ == '__main__':
     # model
     parser.add_argument('--decoder_embed_dim', default=768, type=int)
     parser.add_argument('--drop_path_rate', default=0.0, type=float)
-    parser.add_argument('--pred_shape', default='attmask_high', type=str, help="""Shape of partial prediction. 
+    parser.add_argument('--pred_shape', default='attmask_hint', type=str, help="""Shape of partial prediction. 
                         Select between attmask_high, attmask_hint, attmask_low, rand or block""")
     parser.add_argument('--init_values', default=None, type=float)
     parser.add_argument('--projector_depth', default=2, type=int)

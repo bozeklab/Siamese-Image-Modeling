@@ -33,7 +33,7 @@ from timm.optim import create_optimizer
 
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
-from util.augmentation import RandomResizedCrop, GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlip, Solarize
+from util.augmentation import RandomResizedCrop, GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlipBoxes, Solarize
 from util.datasets import ImagenetWithMask
 import models_sim_orig
 from engine_pretrain import train_one_epoch
@@ -154,7 +154,7 @@ class DataAugmentationForSIM(object):
         self.args = args
 
         self.random_resized_crop = SingleRandomResizedCrop(args.input_size, scale=(args.crop_min, 1.0), interpolation=3)
-        self.random_flip = RandomHorizontalFlip()
+        self.random_flip = RandomHorizontalFlipBoxes()
 
         self.color_transform1 = transforms.Compose([
             transforms.RandomApply([

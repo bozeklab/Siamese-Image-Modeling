@@ -164,7 +164,7 @@ class SingleRandomResizedCrop(transforms.RandomResizedCrop):
 
         return _boxes.int()
 
-    def forward(self, img, boxes):
+    def forward(self, img, boxes=None):
         """
         Args:
             img (PIL Image or Tensor): Image to be cropped and resized.
@@ -172,9 +172,13 @@ class SingleRandomResizedCrop(transforms.RandomResizedCrop):
         Returns:
             PIL Image or Tensor: Randomly cropped and resized image.
         """
-        i, j, h, w, width = self.get_params(img, self.scale, self.ratio)
-        return F.resized_crop(img, i, j, h, w, self.size, self.interpolation), \
-               self.rescale_boxes(boxes, i, j, h, w), i, j, h, w, width
+        if boxes is None:
+            i, j, h, w, width = self.get_params(img, self.scale, self.ratio)
+            return F.resized_crop(img, i, j, h, w, self.size, self.interpolation), i, j, h, w, width
+        else:
+            i, j, h, w, width = self.get_params(img, self.scale, self.ratio)
+            return F.resized_crop(img, i, j, h, w, self.size, self.interpolation), \
+                self.rescale_boxes(boxes, i, j, h, w), i, j, h, w, width
 
 
 class Resize(transforms.Resize):
@@ -231,6 +235,13 @@ class RandomHorizontalFlipForMaps(transforms.RandomHorizontalFlip):
 
 
 class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
+    def forward(self, img):
+        if torch.rand(1) < self.p:
+            return F.hflip(img), True
+        return img, False
+
+
+class RandomHorizontalFlipBoxes(transforms.RandomHorizontalFlip):
     """Horizontally flip the given image randomly with a given probability.
     If the image is torch Tensor, it is expected
     to have [..., H, W] shape, where ... means an arbitrary number of leading

@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 
 import models_sim
-from main_pretrain import DataPreprocessingForSIMWithClasses, DataPreprocessingForSIM, DataAugmentationForSIMTraining
+from main_pretrain import DataPreprocessingForSIMWithClasses, DataPreprocessingForSIM, DataAugmentationBoxesForSIMTraining
 from models_sim import sim_vit_base_patch16_img224
 from models_unetr_vit import unetr_vit_small_base_patch16
 from models_vit import vit_base_patch16, vit_small_base_patch16
@@ -80,7 +80,7 @@ def prepare_model(chkpt_dir, args):
 
 
 if __name__ == '__main__':
-    transform_train = DataAugmentationForSIMTraining(args)
+    transform_train = DataAugmentationBoxesForSIMTraining(args)
     print(f'Data pre-processing:\n{transform_train}')
 
     dataset_train = ImagenetWithMask(os.path.join(args.data_path),

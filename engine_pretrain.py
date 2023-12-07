@@ -79,8 +79,8 @@ def train_one_epoch(model: torch.nn.Module,
             delta_w = samples['delta_w']
             relative_flip = samples['relative_flip']
             flip_delta_j = samples['flip_delta_j']
-            boxes1 = samples['boxes1']
-            boxes2 = samples['boxes2']
+            #boxes1 = samples['boxes1']
+            #boxes2 = samples['boxes2']
 
             x1 = x1.to(device, non_blocking=True)
             x2 = x2.to(device, non_blocking=True)
@@ -93,7 +93,7 @@ def train_one_epoch(model: torch.nn.Module,
             rel_pos_21 = (delta_i, delta_j, delta_h, delta_w, relative_flip, flip_delta_j)
 
             with torch.cuda.amp.autocast(enabled=(not args.fp32)):
-                loss, outputs, attn = model(x1, x2, boxes2, rel_pos_21, mm, update_mm, attn_mask=attn_mask, mask=mask)
+                loss, outputs, attn = model(x1, x2, rel_pos_21, mm, update_mm, attn_mask=attn_mask, mask=mask)
                 metric_logger.update(**outputs)
 
             #vattn = visualize_attention(attn, w_featmap=14, h_featmap=14,
