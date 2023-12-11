@@ -47,7 +47,7 @@ def train_one_epoch(model: torch.nn.Module,
         print('log_dir: {}'.format(log_writer.log_dir))
 
     for data_iter_step, data in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
-        if args.pred_shape in ['attmask_high', 'attmask_hint', 'attmask_low']:
+        if args.pred_shape in ['attmask_high', 'attmask_hint', 'attmask_low'] and epoch >= args.pred_start_epoch:
             attn_mask = (args.masking_prob, args.pred_shape, args.show_max)
             samples, mask = data
         elif args.with_blockwise_mask:

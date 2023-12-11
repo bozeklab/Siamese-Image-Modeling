@@ -145,6 +145,8 @@ def get_args_parser():
     parser.add_argument('--loss_type', default='mae')
     parser.add_argument('--neg_weight', default=0.02, type=float)
 
+    parser.add_argument('--pred_start_epoch', default=50, type=int, help="""Start epoch to perform masked
+        image prediction. We typically set this to 50 for swin transformer. (Default: 0)""")
     parser.add_argument('--with_blockwise_mask', default=False, action='store_true')
     parser.add_argument('--blockwise_num_masking_patches', default=75, type=int)
     parser.add_argument('--pred_shape', default=None, type=str, help="""Shape of partial prediction. 
@@ -460,8 +462,8 @@ class DataAugmentationForSIM(object):
 
         self.format_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            #transforms.Normalize(
+            #    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
     def __call__(self, image):
