@@ -600,6 +600,8 @@ def main(args):
         model_without_ddp = model.module
     print("Model = %s" % str(model_without_ddp))
 
+    print(f"Using attn {args.pred_shape} after {args.pred_start_epoch} epochs.")
+
     # build optimizer
     # following timm: set wd as 0 for bias and norm layers
     param_groups = param_groups_weight_decay(model_without_ddp, args.weight_decay)
