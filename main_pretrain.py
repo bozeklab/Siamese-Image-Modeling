@@ -122,7 +122,7 @@ def get_args_parser():
                         help='url used to set up distributed training')
 
     # Attention parameters
-    parser.add_argument('--masking_prob', type=float, default=0.5, help=""""Perform token masking 
+    parser.add_argument('--masking_prob', type=float, default=0.75, help=""""Perform token masking 
                         based on attention with specific probability, works only for --pred_shape attmask_high, attmask_hint, attmask_low""")
     parser.add_argument('--show_max', type=float, default=0.1, help="The top salient tokens from which a random sample will be revealed")
 
