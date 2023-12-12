@@ -18,7 +18,6 @@ def AttMask(attention, masking_prob, masking_mode, masking_ratio, show_ratio, sh
                              masking_mode,
                              show_max
                              )
-
         # Reveal some of the most attended tokens
         masks = show_hints(top_masks, masks, show_ratio)
 
@@ -28,13 +27,21 @@ def AttMask(attention, masking_prob, masking_mode, masking_ratio, show_ratio, sh
 def get_mask(attention, masking_prob, masking_mode, masking_ratio):
     # Token masking
     token_mask = attention_masking(attention, masking_mode, masking_ratio)
+    flipped_tensor = token_mask.clone()
 
     # Mask a subset based on masking_prob threshold
-    generator = torch.rand(attention.shape[0], device=attention.device)
-    token_mask[generator > masking_prob] = False
+    for row_idx in range(flipped_tensor.size(0)):
+        # Get the indices where the boolean mask is True
+        true_indices = torch.nonzero(token_mask[row_idx]).squeeze()
 
-    return token_mask
+        # Randomly select a fraction p of True values to flip to False
+        num_indices_to_flip = int(len(true_indices) * (1 - masking_prob))
+        selected_indices = torch.randperm(len(true_indices))[:num_indices_to_flip]
 
+        # Flip the selected True values to False
+        flipped_tensor[row_idx, true_indices[selected_indices]] = False
+
+    return flipped_tensor
 
 def attention_masking(attention, masking_mode, masking_ratio):
     N = int(attention.shape[1] * masking_ratio)
