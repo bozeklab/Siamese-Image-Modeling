@@ -9,7 +9,7 @@ import util.blocks as B
 
 
 class Adios_mask(nn.Module):
-    def __init__(self, num_blocks, mask_fbase, img_size=64, filter_start=32,
+    def __init__(self, num_blocks, mask_fbase=32, img_size=64, filter_start=32,
                  in_chnls=4, out_chnls=1, norm='in', N=4):
         super(Adios_mask, self).__init__()
 

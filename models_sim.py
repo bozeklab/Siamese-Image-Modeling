@@ -23,10 +23,13 @@ from attnmask import AttMask, get_pred_ratio
 from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
+import numpy as np
 from models_vit import Block, CrossBlock, PatchEmbed
 import torch.nn.functional as F
 
 from torchvision.ops import roi_align
+
+from util.unet import UNet
 
 
 class PermuteBN(nn.Module):
@@ -141,10 +144,31 @@ class SiameseIMViT(nn.Module):
             self.build_momentum_target(img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                         mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads)
 
+        if self.args.adios_masks:
+            self.build_masking_unet()
+
         # stop grad for patch embedding
         if (not args.train_patch_embed):
             self.patch_embed.proj.weight.requires_grad = False
             self.patch_embed.proj.bias.requires_grad = False
+
+    def build_masking_unet(self, mask_fbase, filter_start, in_chnls, out_chnls, norm, N):
+        self.mask_encoder = UNet(
+            num_blocks=int(np.log2(self.args.img_size) - 1),
+            img_size=self.args.img_size,
+            filter_start=filter_start,
+            in_chnls=in_chnls,
+            out_chnls=out_chnls,
+            norm=norm)
+
+        self.mask_head = nn.Sequential(
+            nn.Conv2d(mask_fbase, N, 1, 1, 0),
+            nn.Softmax(dim=1)
+        )
+        for p in self.mask_encoder.parameters():
+            p.requires_grad = False
+        for p in self.mask_head.parameters():
+            p.requires_grad = False
 
     def build_momentum_target(self, img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                 mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
@@ -270,6 +294,8 @@ class SiameseIMViT(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], 3, h * p, h * p))
         return imgs
 
+    def adios_masking(self, x, mask_ratio):
+        pass
 
     def random_masking(self, x, mask_ratio):
         """

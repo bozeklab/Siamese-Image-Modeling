@@ -480,6 +480,7 @@ class DataAugmentationForSIM(object):
             'x0': self.format_transform(image),
             'x1': self.format_transform(color_image1),
             'x2': self.format_transform(color_image2),
+            'spatial_x1': self.format_transform(spatial_image1),
             'i1': i1,
             'i2': i2,
             'j1': j1,

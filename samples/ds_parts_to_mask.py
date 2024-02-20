@@ -7,7 +7,8 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torchvision.utils as vutils
-from torch.utils.data import RandomSampler
+from matplotlib.colors import ListedColormap
+from torch.utils.data import RandomSampler, SequentialSampler
 from torchvision import transforms
 
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
@@ -63,6 +64,19 @@ def bool_to_bw_image(bool_tensor):
     return bw_image
 
 
+def masks_grid(input_tensor, patch_size=16):
+
+    N, H, W = input_tensor.shape
+
+    reshaped_tensor = input_tensor.view(N, H // patch_size, patch_size,
+                                        W // patch_size, patch_size).contiguous()
+
+    # Count the number of true values in each patch
+    output_tensor = reshaped_tensor.sum(dim=(2, 4))
+
+    return output_tensor
+
+
 def threshold_grid(input_tensor, k, patch_size=16):
 
     # Reshape the input tensor to create non-overlapping patches of size 16x16
@@ -103,6 +117,47 @@ def gray_out_mask(image, mask, patch_size, alpha):
             if mask[i][j]:
                 image = gray_out_square(image, i * patch_size, j * patch_size, patch_size, alpha)
     return image
+
+
+def random_masking_setting3(mask_ratio, masks, total_num):
+    """
+    Perform per-sample random masking by per-sample shuffling.
+    Per-sample shuffling is done by argsort random noise.
+    """
+    N, M, L = masks.shape  # batch, length, dim  [64,196,768]
+
+    len_keep = int(L * (1 - mask_ratio))
+
+    total_num = total_num.unsqueeze(2).repeat(1, 1, L)
+
+    noise = torch.rand(N, 4, device=masks.device)  # noise in [0, 1]
+    parts_id_shuffle = torch.argsort(noise, dim=1)
+    parts_ids_restore = torch.argsort(parts_id_shuffle, dim=1)
+    shuffle_total_num = torch.gather(total_num, dim=2, index=parts_id_shuffle.unsqueeze(2).repeat(1, 1, L))
+    shuffle_total_num = shuffle_total_num.to(torch.long)
+    marks = (L * mask_ratio - torch.cumsum(shuffle_total_num, -2) + shuffle_total_num).to(torch.long)  # mask_num-b+a
+    marks_remains = torch.where(marks < 0, 0, marks).to(torch.long)  # max(mask_num-b+a, 0)
+    mask_num = torch.where(marks_remains < shuffle_total_num, marks_remains,
+                           shuffle_total_num)  # min(a, max(mask-b+a))
+    mask_num = torch.gather(mask_num, dim=2, index=parts_ids_restore.unsqueeze(2).repeat(1, 1, L))
+    #masks = torch.gather(masks, dim=2, index=parts_id_shuffle.unsqueeze(2).repeat(1, 1, L))
+
+    cum_mask = torch.cumsum(masks, dim=2)
+
+    judge_mask = cum_mask <= mask_num
+
+    judge_mask = torch.sum(judge_mask * masks, dim=1)  # 0 is keep, 1 is remove
+    judge_mask = torch.clamp(judge_mask, max=1)
+    ids_shuffle = torch.argsort(judge_mask, dim=1)  # shuffle_id
+    ids_restore = torch.argsort(ids_shuffle, dim=1)
+    # sorted_index = torch.gather(sorted_index, dim=1, index=ids_shuffle)
+    # keep the first subset
+    mask = torch.ones([N, L], device=masks.device)
+    mask[:, :len_keep] = 0
+    # unshuffle to get the binary mask
+
+    mask = torch.gather(mask, dim=1, index=ids_restore)
+    return mask, ids_restore
 
 
 class DataAugmentationForSIMSample(object):
@@ -215,10 +270,14 @@ if __name__ == '__main__':
     masked_images1 = []
     masked_images2 = []
     masked_images3 = []
+    masked_images4 = []
+
+    parts = []
     masks0 = []
     masks1 = []
     masks2 = []
     masks3 = []
+    masks4 = []
 
     for idx, data in enumerate(dataloader_train):
         if idx == 5:
@@ -235,7 +294,23 @@ if __name__ == '__main__':
             a = soft_masks.argmax(dim=1).cpu()
             hard_masks = torch.zeros(soft_masks.shape).scatter(1, a.unsqueeze(1), 1.0).squeeze()
 
-            TH = 50
+            TH = 60
+
+            # hard_masks_ = masks_grid(hard_masks)
+            # background = torch.all(hard_masks_ <= TH, dim=0)
+            # bckg = torch.where(background, torch.tensor(256.0), torch.tensor(0.0)).unsqueeze(0)
+            # hard_masks_ = torch.concat([hard_masks_, bckg], dim=0)
+            # output_tensor = hard_masks_.argmax(dim=0)
+            # print(output_tensor)
+            # #print(masks_grid(hard_masks).shape)
+            # num_levels = 5
+            # # Create a discrete colormap with 'viridis' as the base colormap
+            # cmap = ListedColormap(plt.cm.viridis(np.linspace(0, 1, num_levels)))
+            # plt.imshow(output_tensor, cmap=cmap, interpolation='nearest')
+            # plt.colorbar(ticks=range(num_levels))
+            # plt.show()
+
+            #threshold_grid(hard_masks, TH)
 
             th0 = hard_masks[0].bool()
             th0 = threshold_grid(th0, TH)
@@ -249,6 +324,35 @@ if __name__ == '__main__':
             th3 = hard_masks[3].bool()
             th3 = threshold_grid(th3, TH)
 
+            import random
+
+            th = [th0, th1, th2, th3]
+            random.shuffle(th)
+            all_masks = torch.stack(th, dim=0)
+            total_num = all_masks.sum(dim=(1, 2)).unsqueeze(dim=0)
+            all_masks = all_masks.unsqueeze(dim=0).flatten(2)
+            all_masks = all_masks.permute(0, 1, 2)
+
+            smask, _ = random_masking_setting3(mask_ratio=0.5, masks=all_masks, total_num=total_num)
+
+            smasks = smask.squeeze().view(th0.shape[0], th0.shape[1])
+
+            #cum_mask = torch.bitwise_or.reduce(all_masks, dim=1)
+
+            #count_per_row = torch.sum(all_masks, dim=(2, 3))
+            #print(count_per_row)
+
+            #B, N, H, W = all_masks.shape  # batch, length, dim  [64,196,768]
+            #L = H * W
+            #mask_ratio = 0.75
+            #len_keep = int(L * (1 - mask_ratio))
+            #noise = torch.rand(N, L)
+            #ids_shuffle = torch.argsort(noise, dim=1)
+            #print(ids_shuffle.shape)
+            #all_masks = torch.gather(all_masks, dim=1, index=ids_shuffle.unsqueeze(-1).repeat(1, 1, 4))
+
+            #ids_shuffle = torch.argsort(noise, dim=1)
+
             x_g0 = gray_out_mask(x1.clone(), th0, 16, alpha=0.2)
             masked_images0.append(x_g0)
             x_g1 = gray_out_mask(x1.clone(), th1, 16, alpha=0.2)
@@ -257,11 +361,17 @@ if __name__ == '__main__':
             masked_images2.append(x_g2)
             x_g3 = gray_out_mask(x1.clone(), th3, 16, alpha=0.2)
             masked_images3.append(x_g3)
+            x_g4 = gray_out_mask(x1.clone(), smasks, 16, alpha=0.2)
+            masked_images4.append(x_g4)
+
+            #x_g3 = gray_out_mask(x1.clone(), cum_mask, 16, alpha=0.2)
+            #masked_images3.append(x_g3)
 
             m0 = bool_to_bw_image((1 - hard_masks[0]).bool())
             m1 = bool_to_bw_image((1 - hard_masks[1]).bool())
             m2 = bool_to_bw_image((1 - hard_masks[2]).bool())
             m3 = bool_to_bw_image((1 - hard_masks[3]).bool())
+
             masks0.append(m0.float())
             masks1.append(m1.float())
             masks2.append(m2.float())
@@ -273,6 +383,7 @@ if __name__ == '__main__':
     grid_masked_img1 = vutils.make_grid(masked_images1, nrow=len(masked_images1), padding=1, normalize=True)
     grid_masked_img2 = vutils.make_grid(masked_images2, nrow=len(masked_images2), padding=1, normalize=True)
     grid_masked_img3 = vutils.make_grid(masked_images3, nrow=len(masked_images3), padding=1, normalize=True)
+    grid_masked_img4 = vutils.make_grid(masked_images4, nrow=len(masked_images4), padding=1, normalize=True)
 
     grid_tensor_images = vutils.make_grid(images, nrow=len(images), padding=1, normalize=True)
     grid_tensor_masks0 = vutils.make_grid(masks0, nrow=len(masks0), padding=1, normalize=True)
@@ -285,6 +396,7 @@ if __name__ == '__main__':
     grid_masked_img1 = grid_masked_img1.cpu().numpy().transpose((1, 2, 0))
     grid_masked_img2 = grid_masked_img2.cpu().numpy().transpose((1, 2, 0))
     grid_masked_img3 = grid_masked_img3.cpu().numpy().transpose((1, 2, 0))
+    grid_masked_img4 = grid_masked_img4.cpu().numpy().transpose((1, 2, 0))
 
     grid_images = grid_tensor_images.cpu().numpy().transpose((1, 2, 0))
     grid_masks0 = grid_tensor_masks0.cpu().numpy().transpose((1, 2, 0))
@@ -298,7 +410,7 @@ if __name__ == '__main__':
     average_image3 = 0.6 * grid_images + 0.4 * grid_masks3
 
     # Create a new figure with three subplots
-    fig, axs = plt.subplots(9, 1, figsize=(8, 12))
+    fig, axs = plt.subplots(10, 1, figsize=(8, 12))
 
     # Display the images in the first row
     axs[0].imshow(grid_images)
@@ -333,5 +445,7 @@ if __name__ == '__main__':
     axs[8].imshow(grid_masked_img3)
     axs[8].axis('off')
 
+    axs[9].imshow(grid_masked_img4)
+    axs[9].axis('off')
 
     plt.show()

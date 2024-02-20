@@ -143,14 +143,14 @@ if __name__ == '__main__':
     # model
     parser.add_argument('--decoder_embed_dim', default=768, type=int)
     parser.add_argument('--drop_path_rate', default=0.0, type=float)
-    parser.add_argument('--pred_shape', default='attmask_hint', type=str, help="""Shape of partial prediction. 
+    parser.add_argument('--pred_shape', default='attmask_high', type=str, help="""Shape of partial prediction. 
                         Select between attmask_high, attmask_hint, attmask_low, rand or block""")
     parser.add_argument('--init_values', default=None, type=float)
     parser.add_argument('--projector_depth', default=2, type=int)
     parser.add_argument('--predictor_depth', default=4, type=int)
 
     # Attention parameters
-    parser.add_argument('--masking_prob', type=float, default=0.7, help=""""Perform token masking 
+    parser.add_argument('--masking_prob', type=float, default=0.75, help=""""Perform token masking 
                         based on attention with specific probability, works only for --pred_shape attmask_high, attmask_hint, attmask_low""")
     parser.add_argument('--show_max', type=float, default=0.1,
                         help="The top salient tokens from which a random sample will be revealed")
@@ -240,7 +240,6 @@ if __name__ == '__main__':
                     args.show_max)
 
     masks = masks.reshape(-1, args.image_size[0] // args.patch_size, args.image_size[1] // args.patch_size).squeeze()
-    print(masks)
 
     # Convert the boolean tensor to a float tensor
     float_tensor = masks.float()
