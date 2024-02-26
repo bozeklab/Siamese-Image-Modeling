@@ -160,8 +160,8 @@ class SiameseIMViT(nn.Module):
 
     def build_masking_unet(self, mask_fbase, filter_start, in_chnls, out_chnls, norm, N):
         self.mask_encoder = UNet(
-            num_blocks=int(np.log2(self.args.img_size) - 1),
-            img_size=self.args.img_size,
+            num_blocks=int(np.log2(self.args.input_size) - 1),
+            img_size=self.args.input_size,
             filter_start=filter_start,
             in_chnls=in_chnls,
             out_chnls=out_chnls,
