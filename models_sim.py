@@ -170,9 +170,7 @@ class SiameseIMViT(nn.Module):
                 norm=norm,
                 N=N)
 
-        for p in self.mask_encoder.parameters():
-            p.requires_grad = False
-        for p in self.mask_head.parameters():
+        for p in self.adios_model.parameters():
             p.requires_grad = False
 
     def build_momentum_target(self, img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
