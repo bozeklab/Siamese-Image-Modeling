@@ -21,6 +21,7 @@ import torch.nn as nn
 
 from attnmask import AttMask, get_pred_ratio
 from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
+from samples.ds_parts_to_mask import threshold_grid, random_masking_setting3
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
 import numpy as np
@@ -448,7 +449,7 @@ class SiameseIMViT(nn.Module):
 
             return self.last_attn[len(self.blocks) - 1]
 
-    def forward_sim(self, x1, x2, rel_pos_21, mm, update_mm, attn_mask=None, mask=None):
+    def forward_sim(self, x1, x2, rel_pos_21, mm, update_mm, attn_mask=None, spatial_x1=None, adios_mask=False, mask=None):
         # forward online encoder
         if attn_mask is not None:
             masking_prob, pred_shape, show_max = attn_mask
@@ -471,6 +472,39 @@ class SiameseIMViT(nn.Module):
             mask = masks.reshape(-1, self.patch_embed.grid_size[0], self.patch_embed.grid_size[1]).squeeze()
             mask = mask.view(mask.shape[0], -1)
             mask = mask.cuda()
+        elif adios_mask:
+            with torch.no_grad():
+                feats = self.adios_model.mask_encoder(spatial_x1)
+                soft_masks = self.adios_model.mask_head(feats)
+                a = soft_masks.argmax(dim=1).cpu()
+                hard_masks = torch.zeros(soft_masks.shape).scatter(1, a.unsqueeze(1), 1.0).squeeze()
+
+                TH = 60
+
+                th0 = hard_masks[0].bool()
+                th0 = threshold_grid(th0, TH)
+
+                th1 = hard_masks[1].bool()
+                th1 = threshold_grid(th1, TH)
+
+                th2 = hard_masks[2].bool()
+                th2 = threshold_grid(th2, TH)
+
+                th3 = hard_masks[3].bool()
+                th3 = threshold_grid(th3, TH)
+
+                import random
+
+                th = [th0, th1, th2, th3]
+                random.shuffle(th)
+                all_masks = torch.stack(th, dim=0)
+                total_num = all_masks.sum(dim=(1, 2)).unsqueeze(dim=0)
+                all_masks = all_masks.unsqueeze(dim=0).flatten(2)
+                all_masks = all_masks.permute(0, 1, 2)
+
+                smask, _ = random_masking_setting3(mask_ratio=0.5, masks=all_masks, total_num=total_num)
+                smasks = smask.squeeze().view(th0.shape[0], th0.shape[1])
+                mask = smasks.view(mask.shape[0], -1)
 
         elif self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
