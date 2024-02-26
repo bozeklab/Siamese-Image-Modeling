@@ -29,7 +29,7 @@ import torch.nn.functional as F
 
 from torchvision.ops import roi_align
 
-from util.unet import UNet
+from util.unet import UNet, Adios_mask
 
 
 class PermuteBN(nn.Module):
@@ -159,18 +159,17 @@ class SiameseIMViT(nn.Module):
             self.patch_embed.proj.bias.requires_grad = False
 
     def build_masking_unet(self, mask_fbase, filter_start, in_chnls, out_chnls, norm, N):
-        self.mask_encoder = UNet(
-            num_blocks=int(np.log2(self.args.input_size) - 1),
-            img_size=self.args.input_size,
-            filter_start=filter_start,
-            in_chnls=in_chnls,
-            out_chnls=out_chnls,
-            norm=norm)
 
-        self.mask_head = nn.Sequential(
-            nn.Conv2d(mask_fbase, N, 1, 1, 0),
-            nn.Softmax(dim=1)
-        )
+        self.adios_model = Adios_mask(
+                num_blocks=int(np.log2(self.args.input_size) - 1),
+                mask_fbase=mask_fbase,
+                img_size=self.args.input_size,
+                filter_start=filter_start,
+                in_chnls=in_chnls,
+                out_chnls=out_chnls,
+                norm=norm,
+                N=N)
+
         for p in self.mask_encoder.parameters():
             p.requires_grad = False
         for p in self.mask_head.parameters():

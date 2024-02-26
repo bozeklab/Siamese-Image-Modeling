@@ -622,7 +622,7 @@ def main(args):
     if args.adios_masking:
         checkpoint = torch.load(args.resnet_ckpt, map_location='cpu')
         # load pre-trained model
-        msg = model_without_ddp.mask_encoder.load_state_dict(checkpoint['state_dict'], strict=False)
+        msg = model_without_ddp.adios_model.load_state_dict(checkpoint['state_dict'], strict=False)
         print(msg)
 
     # start training

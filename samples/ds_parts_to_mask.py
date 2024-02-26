@@ -36,7 +36,7 @@ class Config:
 
 
 args = Config(data_path='/Users/piotrwojcik/TCGA_images',
-              resnet_ckpt='/Users/piotrwojcik/PycharmProjects/Siamese-Image-Modeling/checkpoints/adios_simclr/simclr_adios_resnet18_he-mheonysq-ep=159.ckpt',
+              resnet_ckpt='/Users/piotrwojcik/PycharmProjects/Siamese-Image-Modeling/checkpoints/adios_simclr/simclr_adios_resnet18_he-ep_499.ckpt',
               mask_fbase=32, unet_norm='in',
               input_size=224, with_blockwise_mask=True,
               blockwise_num_masking_patches=127,
