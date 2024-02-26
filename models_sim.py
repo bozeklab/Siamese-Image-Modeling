@@ -144,7 +144,7 @@ class SiameseIMViT(nn.Module):
             self.build_momentum_target(img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
                                         mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads)
 
-        if self.args.adios_masks:
+        if self.args.adios_masking:
             self.build_masking_unet(mask_fbase=args.mask_fbase,
                                     filter_start=args.mask_fbase,
                                     in_chnls=3,
