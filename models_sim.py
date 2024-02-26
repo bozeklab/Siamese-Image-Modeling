@@ -21,7 +21,7 @@ import torch.nn as nn
 
 from attnmask import AttMask, get_pred_ratio
 from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
-from samples.ds_parts_to_mask import threshold_grid, random_masking_setting3
+from samples.ds_parts_to_mask import threshold_grid, random_masking_setting3, threshold_grid_batch
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
 import numpy as np
@@ -482,16 +482,16 @@ class SiameseIMViT(nn.Module):
                 TH = 60
 
                 th0 = hard_masks[0].bool()
-                th0 = threshold_grid(th0, TH)
+                th0 = threshold_grid_batch(th0, TH)
 
                 th1 = hard_masks[1].bool()
-                th1 = threshold_grid(th1, TH)
+                th1 = threshold_grid_batch(th1, TH)
 
                 th2 = hard_masks[2].bool()
-                th2 = threshold_grid(th2, TH)
+                th2 = threshold_grid_batch(th2, TH)
 
                 th3 = hard_masks[3].bool()
-                th3 = threshold_grid(th3, TH)
+                th3 = threshold_grid_batch(th3, TH)
 
                 import random
 

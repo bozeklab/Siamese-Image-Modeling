@@ -91,6 +91,20 @@ def threshold_grid(input_tensor, k, patch_size=16):
 
     return output_tensor
 
+def threshold_grid_batch(input_tensor, k, patch_size=16):
+
+    # Reshape the input tensor to create non-overlapping patches of size 16x16
+    reshaped_tensor = input_tensor.view(input_tensor.size(1) // patch_size, patch_size,
+                                        input_tensor.size(2) // patch_size, patch_size).contiguous()
+
+    # Count the number of true values in each patch
+    count_tensor = reshaped_tensor.sum(dim=(2, 4))
+
+    # Apply the threshold to create the boolean tensor
+    output_tensor = count_tensor > k
+
+    return output_tensor
+
 def gray_out_square(image, x_start, y_start, size, alpha):
     # Get the dimensions of the image tensor
     _, height, width = image.shape
