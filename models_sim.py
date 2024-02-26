@@ -498,6 +498,8 @@ class SiameseIMViT(nn.Module):
                 th = [th0, th1, th2, th3]
                 random.shuffle(th)
                 all_masks = torch.stack(th, dim=0)
+                print('!!!')
+                print(all_masks.shape)
                 total_num = all_masks.sum(dim=(1, 2)).unsqueeze(dim=0)
                 all_masks = all_masks.unsqueeze(dim=0).flatten(2)
                 all_masks = all_masks.permute(0, 1, 2)
