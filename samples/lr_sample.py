@@ -5,8 +5,8 @@ import torch
 class Args:
     lr = 0.0003
     min_lr = 1e-4
-    warmup_epochs = 5
-    epochs = 130
+    warmup_epochs = 10
+    epochs = 50
 
 def adjust_learning_rate(optimizer, epoch, args):
     """Decay the learning rate with half-cycle cosine after warmup"""
@@ -51,6 +51,7 @@ def main():
     plt.grid(True)
     plt.legend()
     plt.show()
+
 
 if __name__ == "__main__":
     main()

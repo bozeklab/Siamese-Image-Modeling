@@ -69,6 +69,8 @@ def get_args_parser():
     parser.add_argument('--mask_ratio', default=0.75, type=float,
                         help='Masking ratio (percentage of removed patches).')
 
+    parser.add_argument('--adios_masking', default=False, action='store_true')
+
     parser.add_argument('--norm_pix_loss', action='store_true',
                         help='Use (per-patch) normalized pixels as targets for computing loss')
     parser.set_defaults(norm_pix_loss=False)
@@ -94,6 +96,9 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='/Users/piotrwojcik/images_he_seg1000/positive/', type=str,
                         help='dataset path')
+
+    parser.add_argument('--resnet_ckpt', default=None, type=str,
+                        help='load masking unet')
 
     parser.add_argument('--output_dir', default='./output_dir',
                         help='path where to save, empty for no saving')
@@ -601,7 +606,8 @@ def main(args):
         model_without_ddp = model.module
     print("Model = %s" % str(model_without_ddp))
 
-    print(f"Using attn {args.pred_shape} after {args.pred_start_epoch} epochs.")
+    if args.pred_shape is not None:
+        print(f"Using attn {args.pred_shape} after {args.pred_start_epoch} epochs.")
 
     # build optimizer
     # following timm: set wd as 0 for bias and norm layers
@@ -612,6 +618,12 @@ def main(args):
 
     misc.auto_load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer,
                          loss_scaler=loss_scaler)
+
+    if args.adios_masking:
+        checkpoint = torch.load(args.resnet_ckpt, map_location='cpu')
+        # load pre-trained model
+        msg = self.mask_encoder.load_state_dict(checkpoint['state_dict'], strict=False)
+        print(msg)
 
     # start training
     print(f"Start training for {args.epochs} epochs")

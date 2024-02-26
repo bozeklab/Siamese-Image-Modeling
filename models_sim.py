@@ -145,7 +145,12 @@ class SiameseIMViT(nn.Module):
                                         mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads)
 
         if self.args.adios_masks:
-            self.build_masking_unet()
+            self.build_masking_unet(mask_fbase=args.mask_fbase,
+                                    filter_start=args.mask_fbase,
+                                    in_chnls=3,
+                                    out_chnls=-1,
+                                    norm='in',
+                                    N=4)
 
         # stop grad for patch embedding
         if (not args.train_patch_embed):
@@ -171,7 +176,7 @@ class SiameseIMViT(nn.Module):
             p.requires_grad = False
 
     def build_momentum_target(self, img_size, patch_size, box_patch_size, in_chans, embed_dim, num_heads,
-                                mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
+                              mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads):
         # --------------------------------------------------------------------------
         # momentum encoder specifics
         self.mm_patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
