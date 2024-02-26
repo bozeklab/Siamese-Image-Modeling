@@ -145,8 +145,9 @@ class SiameseIMViT(nn.Module):
                                         mlp_ratio, norm_layer, depth, decoder_embed_dim, decoder_num_heads)
 
         if self.args.adios_masking:
-            self.build_masking_unet(mask_fbase=args.mask_fbase,
-                                    filter_start=args.mask_fbase,
+            mask_fbase = 32
+            self.build_masking_unet(mask_fbase=mask_fbase,
+                                    filter_start=mask_fbase,
                                     in_chnls=3,
                                     out_chnls=-1,
                                     norm='in',
