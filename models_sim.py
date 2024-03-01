@@ -532,8 +532,8 @@ class SiameseIMViT(nn.Module):
                 # print(torch.median(total_num, dim=0)[0])
                 mask, _ = random_masking_setting3(mask_ratio=0.5, masks=all_masks, total_num=total_num)
 
-                print('!!!')
-                print(mask)
+                #print('!!!')
+                #print(mask)
 
         elif self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
