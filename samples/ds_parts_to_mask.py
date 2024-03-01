@@ -15,7 +15,6 @@ from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.augmentation import GaussianBlur, SingleRandomResizedCrop, RandomHorizontalFlipBoxes, Solarize, \
     Resize, RandomHorizontalFlipForMaps, RandomHorizontalFlip
 from util.datasets import ImagenetWithMask, ImagenetPlainWithMask
-from main_pretrain import DataAugmentationBoxesForSIMTraining, DataAugmentationForSIM
 from util.augmentation import SingleRandomResizedCrop
 from util.datasets import ImagenetWithMask, ImagenetPlainWithMask
 from util.unet import UNet, Adios_mask
@@ -40,7 +39,7 @@ args = Config(data_path='/Users/piotrwojcik/TCGA_images',
               mask_fbase=32, unet_norm='in',
               input_size=224, with_blockwise_mask=True,
               blockwise_num_masking_patches=127,
-              crop_min=0.2, num_boxes=150, batch_size=1)
+              crop_min=0.2, num_boxes=150, batch_size=16)
 
 
 def bool_to_bw_image(bool_tensor):
@@ -80,27 +79,10 @@ def masks_grid(input_tensor, patch_size=16):
 def threshold_grid(input_tensor, k, patch_size=16):
 
     # Reshape the input tensor to create non-overlapping patches of size 16x16
-    reshaped_tensor = input_tensor.view(input_tensor.size(0) // patch_size, patch_size,
-                                        input_tensor.size(1) // patch_size, patch_size).contiguous()
-
-    # Count the number of true values in each patch
-    count_tensor = reshaped_tensor.sum(dim=(1, 3))
-
-    # Apply the threshold to create the boolean tensor
-    output_tensor = count_tensor > k
-
-    return output_tensor
-
-def threshold_grid_batch(input_tensor, k, patch_size=16):
-
-    # Reshape the input tensor to create non-overlapping patches of size 16x16
-    reshaped_tensor = input_tensor.view(input_tensor.size(1) // patch_size, patch_size,
+    reshaped_tensor = input_tensor.view(input_tensor.size(0), input_tensor.size(1) // patch_size, patch_size,
                                         input_tensor.size(2) // patch_size, patch_size).contiguous()
 
-    # Count the number of true values in each patch
     count_tensor = reshaped_tensor.sum(dim=(2, 4))
-
-    # Apply the threshold to create the boolean tensor
     output_tensor = count_tensor > k
 
     return output_tensor
@@ -119,16 +101,20 @@ def gray_out_square(image, x_start, y_start, size, alpha):
     # Replace the square region with the gray overlay
     image[:, x_start:x_end, y_start:y_end] = gray_overlay
 
+
     return image
 
 
 def gray_out_mask(image, mask, patch_size, alpha):
     mh, mw = mask.shape
-
     for i in range(mh):
         for j in range(mw):
-            if mask[i][j]:
+            if mask[i][j].item():
                 image = gray_out_square(image, i * patch_size, j * patch_size, patch_size, alpha)
+
+    #plt.imshow(image.permute(1, 2, 0))
+    #plt.axis('off')  # Remove axes
+    #plt.show()
     return image
 
 
@@ -137,28 +123,39 @@ def random_masking_setting3(mask_ratio, masks, total_num):
     Perform per-sample random masking by per-sample shuffling.
     Per-sample shuffling is done by argsort random noise.
     """
-    N, M, L = masks.shape  # batch, length, dim  [64,196,768]
+    N, M, L = masks.shape  # batch, length, dim  [16, 4, 196]
+
+    #print(N, M, L)
 
     len_keep = int(L * (1 - mask_ratio))
 
     total_num = total_num.unsqueeze(2).repeat(1, 1, L)
 
-    noise = torch.rand(N, 4, device=masks.device)  # noise in [0, 1]
-    parts_id_shuffle = torch.argsort(noise, dim=1)
-    parts_ids_restore = torch.argsort(parts_id_shuffle, dim=1)
-    shuffle_total_num = torch.gather(total_num, dim=2, index=parts_id_shuffle.unsqueeze(2).repeat(1, 1, L))
-    shuffle_total_num = shuffle_total_num.to(torch.long)
+    #noise = torch.rand(N, 4, device=masks.device)  # noise in [0, 1]
+    #parts_id_shuffle = torch.argsort(noise, dim=1)
+    #parts_ids_restore = torch.argsort(parts_id_shuffle, dim=1)
+    #shuffle_total_num = torch.gather(total_num, dim=1, index=parts_id_shuffle.unsqueeze(2).repeat(1, 1, L))
+    #print(shuffle_total_num[..., 0])
+
+    shuffle_total_num = total_num.to(torch.long)
     marks = (L * mask_ratio - torch.cumsum(shuffle_total_num, -2) + shuffle_total_num).to(torch.long)  # mask_num-b+a
     marks_remains = torch.where(marks < 0, 0, marks).to(torch.long)  # max(mask_num-b+a, 0)
+
     mask_num = torch.where(marks_remains < shuffle_total_num, marks_remains,
                            shuffle_total_num)  # min(a, max(mask-b+a))
-    mask_num = torch.gather(mask_num, dim=2, index=parts_ids_restore.unsqueeze(2).repeat(1, 1, L))
+    #print(mask_num[..., 0])
+
+    #mask_num = torch.gather(mask_num, dim=2, index=parts_ids_restore.unsqueeze(2).repeat(1, 1, L))
     #masks = torch.gather(masks, dim=2, index=parts_id_shuffle.unsqueeze(2).repeat(1, 1, L))
 
     cum_mask = torch.cumsum(masks, dim=2)
 
-    judge_mask = cum_mask <= mask_num
+    #print('!!!!!')
+    #print(cum_mask.shape)
+    #print(mask_num.shape)
+    #print()
 
+    judge_mask = cum_mask <= mask_num
     judge_mask = torch.sum(judge_mask * masks, dim=1)  # 0 is keep, 1 is remove
     judge_mask = torch.clamp(judge_mask, max=1)
     ids_shuffle = torch.argsort(judge_mask, dim=1)  # shuffle_id
@@ -296,12 +293,12 @@ if __name__ == '__main__':
         if idx == 5:
             break
         samples, mask = data
-        x1 = samples['x1'].squeeze()
+        x1 = samples['x1']
 
         model.eval()
         with torch.no_grad():
-            x = x1.unsqueeze(dim=0)
-            x = normalization(x)
+            x = normalization(x1)
+            batch_size = x1.shape[0]
             feats = model.mask_encoder(x)
             soft_masks = model.mask_head(feats)
             a = soft_masks.argmax(dim=1).cpu()
@@ -325,32 +322,76 @@ if __name__ == '__main__':
 
             #threshold_grid(hard_masks, TH)
 
-            th0 = hard_masks[0].bool()
+            th0 = hard_masks[:, 0, :].bool()
             th0 = threshold_grid(th0, TH)
 
-            th1 = hard_masks[1].bool()
+            th1 = hard_masks[:, 1, :].bool()
             th1 = threshold_grid(th1, TH)
 
-            th2 = hard_masks[2].bool()
+            th2 = hard_masks[:, 2, :].bool()
             th2 = threshold_grid(th2, TH)
 
-            th3 = hard_masks[3].bool()
+            th3 = hard_masks[:, 3, :].bool()
             th3 = threshold_grid(th3, TH)
 
             import random
 
             th = [th0, th1, th2, th3]
             random.shuffle(th)
-            all_masks = torch.stack(th, dim=0)
-            total_num = all_masks.sum(dim=(1, 2)).unsqueeze(dim=0)
-            all_masks = all_masks.unsqueeze(dim=0).flatten(2)
-            all_masks = all_masks.permute(0, 1, 2)
+            all_masks = torch.stack(th, dim=1)
 
+            N, M, D1, D2 = all_masks.shape
+            all_masks = all_masks.flatten(2)
+
+ #           for i in range(all_masks.shape[0]):
+ #               for j in range(196):
+ #                   l = torch.nonzero(all_masks[i, ..., j]).squeeze().tolist()
+ #                   if isinstance(l, list):
+ #                       all_masks[i, ..., j] = torch.tensor([False, False, False, False])
+ #                       all_masks[i, l[0], j] = True
+
+            all_masks_float = all_masks.float()
+
+            # Find the index of the maximum value along dimension 1
+            max_indices = torch.max(all_masks_float, dim=1)[1]
+
+            # Create a new tensor with zeros everywhere except where the maximum value was found
+            max_one_hot = torch.zeros_like(all_masks)
+            max_one_hot.scatter_(1, max_indices.unsqueeze(1), 1)
+            all_masks = max_one_hot.bool()
+
+            all_masks = all_masks.view(N, M, D1, D2)
+
+            total_num = all_masks.sum(dim=(2, 3))
+            all_masks = all_masks.flatten(2)
+            #all_masks = all_masks.permute(0, 1, 2)
+
+            _all_masks = all_masks.clone()
+            #print(total_num)
+            _all_masks = _all_masks.view(N, M, D1, D2).bool()
+
+            #print(torch.median(total_num, dim=0)[0])
             smask, _ = random_masking_setting3(mask_ratio=0.5, masks=all_masks, total_num=total_num)
 
-            smasks = smask.squeeze().view(th0.shape[0], th0.shape[1])
+            smasks = smask.view(batch_size, th0.shape[1], th0.shape[2]).bool()
 
             #cum_mask = torch.bitwise_or.reduce(all_masks, dim=1)
+
+            def random_boolean_tensor(size):
+                """
+                Generate a random boolean PyTorch tensor of the given size.
+
+                Args:
+                - size (tuple): Size of the tensor.
+
+                Returns:
+                - torch.Tensor: Random boolean tensor of the given size.
+                """
+                # Generate random numbers between 0 and 1
+                random_tensor = torch.rand(size)
+                # Convert to boolean based on a threshold (e.g., 0.5)
+                boolean_tensor = random_tensor < 0.5
+                return boolean_tensor
 
             #count_per_row = torch.sum(all_masks, dim=(2, 3))
             #print(count_per_row)
@@ -366,31 +407,33 @@ if __name__ == '__main__':
 
             #ids_shuffle = torch.argsort(noise, dim=1)
 
-            x_g0 = gray_out_mask(x1.clone(), th0, 16, alpha=0.2)
+            #print(_all_masks[0, 0, :, :])
+
+            x_g0 = gray_out_mask(x1[0].clone(), _all_masks[0, 0, :, :], 16, alpha=0.5)
             masked_images0.append(x_g0)
-            x_g1 = gray_out_mask(x1.clone(), th1, 16, alpha=0.2)
+            x_g1 = gray_out_mask(x1[0].clone(), _all_masks[0, 1, :, :], 16, alpha=0.5)
             masked_images1.append(x_g1)
-            x_g2 = gray_out_mask(x1.clone(), th2, 16, alpha=0.2)
+            x_g2 = gray_out_mask(x1[0].clone(), _all_masks[0, 2, :, :], 16, alpha=0.5)
             masked_images2.append(x_g2)
-            x_g3 = gray_out_mask(x1.clone(), th3, 16, alpha=0.2)
+            x_g3 = gray_out_mask(x1[0].clone(), _all_masks[0, 3, :, :], 16, alpha=0.5)
             masked_images3.append(x_g3)
-            x_g4 = gray_out_mask(x1.clone(), smasks, 16, alpha=0.2)
+            x_g4 = gray_out_mask(x1[0].clone(), smasks[0], 16, alpha=0.5)
             masked_images4.append(x_g4)
 
             #x_g3 = gray_out_mask(x1.clone(), cum_mask, 16, alpha=0.2)
             #masked_images3.append(x_g3)
 
-            m0 = bool_to_bw_image((1 - hard_masks[0]).bool())
-            m1 = bool_to_bw_image((1 - hard_masks[1]).bool())
-            m2 = bool_to_bw_image((1 - hard_masks[2]).bool())
-            m3 = bool_to_bw_image((1 - hard_masks[3]).bool())
+            m0 = bool_to_bw_image((1 - hard_masks[0][0]).bool())
+            m1 = bool_to_bw_image((1 - hard_masks[0][1]).bool())
+            m2 = bool_to_bw_image((1 - hard_masks[0][2]).bool())
+            m3 = bool_to_bw_image((1 - hard_masks[0][3]).bool())
 
             masks0.append(m0.float())
             masks1.append(m1.float())
             masks2.append(m2.float())
             masks3.append(m3.float())
 
-        images.append(x1)
+        images.append(x1[0])
 
     grid_masked_img0 = vutils.make_grid(masked_images0, nrow=len(masked_images0), padding=1, normalize=True)
     grid_masked_img1 = vutils.make_grid(masked_images1, nrow=len(masked_images1), padding=1, normalize=True)

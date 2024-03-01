@@ -21,7 +21,7 @@ import torch.nn as nn
 
 from attnmask import AttMask, get_pred_ratio
 from fast_rcnn_conv_fc_head import FastRCNNConvFCHead, MLP
-from samples.ds_parts_to_mask import threshold_grid, random_masking_setting3, threshold_grid_batch
+from samples.ds_parts_to_mask import threshold_grid, random_masking_setting3
 from util.pos_embed import get_2d_sincos_pos_embed, get_2d_sincos_pos_embed_relative
 from util.misc import LayerNorm
 import numpy as np
@@ -481,32 +481,56 @@ class SiameseIMViT(nn.Module):
 
                 TH = 60
 
-                th0 = hard_masks[0].bool()
-                th0 = threshold_grid_batch(th0, TH)
+                th0 = hard_masks[:, 0, :].bool()
+                th0 = threshold_grid(th0, TH)
 
-                th1 = hard_masks[1].bool()
-                th1 = threshold_grid_batch(th1, TH)
+                th1 = hard_masks[:, 1, :].bool()
+                th1 = threshold_grid(th1, TH)
 
-                th2 = hard_masks[2].bool()
-                th2 = threshold_grid_batch(th2, TH)
+                th2 = hard_masks[:, 2, :].bool()
+                th2 = threshold_grid(th2, TH)
 
-                th3 = hard_masks[3].bool()
-                th3 = threshold_grid_batch(th3, TH)
+                th3 = hard_masks[:, 3, :].bool()
+                th3 = threshold_grid(th3, TH)
 
                 import random
 
                 th = [th0, th1, th2, th3]
                 random.shuffle(th)
-                all_masks = torch.stack(th, dim=0)
-                print('!!!')
-                print(all_masks.shape)
-                total_num = all_masks.sum(dim=(1, 2)).unsqueeze(dim=0)
-                all_masks = all_masks.unsqueeze(dim=0).flatten(2)
-                all_masks = all_masks.permute(0, 1, 2)
+                all_masks = torch.stack(th, dim=1)
 
-                smask, _ = random_masking_setting3(mask_ratio=0.5, masks=all_masks, total_num=total_num)
-                smasks = smask.squeeze().view(th0.shape[0], th0.shape[1])
-                mask = smasks.view(mask.shape[0], -1)
+                N, M, D1, D2 = all_masks.shape
+                all_masks = all_masks.flatten(2)
+
+                #           for i in range(all_masks.shape[0]):
+                #               for j in range(196):
+                #                   l = torch.nonzero(all_masks[i, ..., j]).squeeze().tolist()
+                #                   if isinstance(l, list):
+                #                       all_masks[i, ..., j] = torch.tensor([False, False, False, False])
+                #                       all_masks[i, l[0], j] = True
+
+                all_masks_float = all_masks.float()
+
+                # Find the index of the maximum value along dimension 1
+                max_indices = torch.max(all_masks_float, dim=1)[1]
+
+                # Create a new tensor with zeros everywhere except where the maximum value was found
+                max_one_hot = torch.zeros_like(all_masks)
+                max_one_hot.scatter_(1, max_indices.unsqueeze(1), 1)
+                all_masks = max_one_hot.bool()
+
+                all_masks = all_masks.view(N, M, D1, D2)
+
+                total_num = all_masks.sum(dim=(2, 3))
+                all_masks = all_masks.flatten(2)
+                # all_masks = all_masks.permute(0, 1, 2)
+
+                _all_masks = all_masks.clone()
+                # print(total_num)
+                _all_masks = _all_masks.view(N, M, D1, D2).bool()
+
+                # print(torch.median(total_num, dim=0)[0])
+                mask, _ = random_masking_setting3(mask_ratio=0.5, masks=all_masks, total_num=total_num)
 
         elif self.args.with_blockwise_mask:
             assert mask is not None, 'mask should not be None when mask_type is block'
